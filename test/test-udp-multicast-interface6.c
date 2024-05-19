@@ -19,15 +19,16 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define CHECK_HANDLE(handle) \
-  ASSERT_NE((uv_udp_t*)(handle) == &server || (uv_udp_t*)(handle) == &client, 0)
+    ASSERT_NE(               \
+        (uv_udp_t*)(handle) == &server || (uv_udp_t*)(handle) == &client, 0)
 
 static uv_udp_t server;
 static uv_udp_t client;
@@ -36,73 +37,67 @@ static int sv_send_cb_called;
 static int close_cb_called;
 
 
-static void close_cb(uv_handle_t* handle) {
-  CHECK_HANDLE(handle);
-  close_cb_called++;
+static void close_cb(uv_handle_t* handle)
+{
+    CHECK_HANDLE(handle);
+    close_cb_called++;
 }
 
 
-static void sv_send_cb(uv_udp_send_t* req, int status) {
-  ASSERT_NOT_NULL(req);
-  ASSERT_OK(status);
-  CHECK_HANDLE(req->handle);
+static void sv_send_cb(uv_udp_send_t* req, int status)
+{
+    ASSERT_NOT_NULL(req);
+    ASSERT_OK(status);
+    CHECK_HANDLE(req->handle);
 
-  sv_send_cb_called++;
+    sv_send_cb_called++;
 
-  uv_close((uv_handle_t*) req->handle, close_cb);
+    uv_close((uv_handle_t*)req->handle, close_cb);
 }
 
 
-TEST_IMPL(udp_multicast_interface6) {
-/* TODO(gengjiawen): Fix test on QEMU. */
-#if defined(__QEMU__)
-  RETURN_SKIP("Test does not currently work in QEMU");
-#endif
+TEST_IMPL(udp_multicast_interface6)
+{
+    int r;
+    uv_udp_send_t req;
+    uv_buf_t buf;
+    struct sockaddr_in6 addr;
+    struct sockaddr_in6 baddr;
 
-  int r;
-  uv_udp_send_t req;
-  uv_buf_t buf;
-  struct sockaddr_in6 addr;
-  struct sockaddr_in6 baddr;
+    if (!can_ipv6())
+        RETURN_SKIP("IPv6 not supported");
 
-  if (!can_ipv6())
-    RETURN_SKIP("IPv6 not supported");
+    ASSERT_OK(uv_ip6_addr("::1", TEST_PORT, &addr));
 
-  ASSERT_OK(uv_ip6_addr("::1", TEST_PORT, &addr));
+    r = uv_udp_init(uv_default_loop(), &server);
+    ASSERT_OK(r);
 
-  r = uv_udp_init(uv_default_loop(), &server);
-  ASSERT_OK(r);
-
-  ASSERT_OK(uv_ip6_addr("::", 0, &baddr));
-  r = uv_udp_bind(&server, (const struct sockaddr*)&baddr, 0);
-  ASSERT_OK(r);
+    ASSERT_OK(uv_ip6_addr("::", 0, &baddr));
+    r = uv_udp_bind(&server, (const struct sockaddr*)&baddr, 0);
+    ASSERT_OK(r);
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
-  r = uv_udp_set_multicast_interface(&server, "::1%lo0");
+    r = uv_udp_set_multicast_interface(&server, "::1%lo0");
 #else
-  r = uv_udp_set_multicast_interface(&server, NULL);
+    r = uv_udp_set_multicast_interface(&server, NULL);
 #endif
-  ASSERT_OK(r);
+    ASSERT_OK(r);
 
-  /* server sends "PING" */
-  buf = uv_buf_init("PING", 4);
-  r = uv_udp_send(&req,
-                  &server,
-                  &buf,
-                  1,
-                  (const struct sockaddr*)&addr,
-                  sv_send_cb);
-  ASSERT_OK(r);
+    /* server sends "PING" */
+    buf = uv_buf_init("PING", 4);
+    r = uv_udp_send(
+        &req, &server, &buf, 1, (const struct sockaddr*)&addr, sv_send_cb);
+    ASSERT_OK(r);
 
-  ASSERT_OK(close_cb_called);
-  ASSERT_OK(sv_send_cb_called);
+    ASSERT_OK(close_cb_called);
+    ASSERT_OK(sv_send_cb_called);
 
-  /* run the loop till all events are processed */
-  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+    /* run the loop till all events are processed */
+    uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  ASSERT_EQ(1, sv_send_cb_called);
-  ASSERT_EQ(1, close_cb_called);
+    ASSERT_EQ(1, sv_send_cb_called);
+    ASSERT_EQ(1, close_cb_called);
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
-  return 0;
+    MAKE_VALGRIND_HAPPY(uv_default_loop());
+    return 0;
 }

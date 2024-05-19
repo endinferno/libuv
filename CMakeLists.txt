@@ -24,12 +24,6 @@ cmake_dependent_option(LIBUV_BUILD_BENCH
     "Build the benchmarks when building unit tests and we are the root project" ON
     "LIBUV_BUILD_TESTS" OFF)
 
-# Qemu Build
-option(QEMU "build for qemu" OFF)
-if(QEMU)
-    list(APPEND uv_defines __QEMU__=1)
-endif()
-
 # Note: these are mutually exclusive.
 option(ASAN "Enable AddressSanitizer (ASan)" OFF)
 option(MSAN "Enable MemorySanitizer (MSan)" OFF)
