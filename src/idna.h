@@ -16,6 +16,8 @@
 #ifndef UV_SRC_IDNA_H_
 #define UV_SRC_IDNA_H_
 
+#include <sys/types.h>
+
 /* Decode a single codepoint. Returns the codepoint or UINT32_MAX on error.
  * |p| is updated on success _and_ error, i.e., bad multi-byte sequences are
  * skipped in their entirety, not just the first bad byte.
@@ -28,4 +30,4 @@ unsigned uv__utf8_decode1(const char** p, const char* pe);
  */
 ssize_t uv__idna_toascii(const char* s, const char* se, char* d, char* de);
 
-#endif  /* UV_SRC_IDNA_H_ */
+#endif /* UV_SRC_IDNA_H_ */

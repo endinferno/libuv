@@ -248,18 +248,18 @@ else()
   list(APPEND uv_test_sources test/runner-unix.c)
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "AIX")
-  list(APPEND uv_defines
-       _ALL_SOURCE
-       _LINUX_SOURCE_COMPAT
-       _THREAD_SAFE
-       _XOPEN_SOURCE=500
-       HAVE_SYS_AHAFS_EVPRODS_H)
-  list(APPEND uv_libraries perfstat)
-  list(APPEND uv_sources
-       src/unix/aix.c
-       src/unix/aix-common.c)
-endif()
+# if(CMAKE_SYSTEM_NAME STREQUAL "AIX")
+#   list(APPEND uv_defines
+#        _ALL_SOURCE
+#        _LINUX_SOURCE_COMPAT
+#        _THREAD_SAFE
+#        _XOPEN_SOURCE=500
+#        HAVE_SYS_AHAFS_EVPRODS_H)
+#   list(APPEND uv_libraries perfstat)
+#   list(APPEND uv_sources
+#        src/unix/aix.c
+#        src/unix/aix-common.c)
+# endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Android")
   list(APPEND uv_defines _GNU_SOURCE)
@@ -376,18 +376,18 @@ if(CMAKE_SYSTEM_NAME STREQUAL "OS390")
   list(APPEND uv_libraries ${ZOSLIB})
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "OS400")
-  list(APPEND uv_defines
-       _ALL_SOURCE
-       _LINUX_SOURCE_COMPAT
-       _THREAD_SAFE
-       _XOPEN_SOURCE=500)
-  list(APPEND uv_sources
-    src/unix/aix-common.c
-    src/unix/ibmi.c
-    src/unix/no-fsevents.c
-    src/unix/posix-poll.c)
-endif()
+# if(CMAKE_SYSTEM_NAME STREQUAL "OS400")
+#   list(APPEND uv_defines
+#        _ALL_SOURCE
+#        _LINUX_SOURCE_COMPAT
+#        _THREAD_SAFE
+#        _XOPEN_SOURCE=500)
+#   list(APPEND uv_sources
+#     src/unix/aix-common.c
+#     src/unix/ibmi.c
+#     src/unix/no-fsevents.c
+#     src/unix/posix-poll.c)
+# endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   if(CMAKE_SYSTEM_VERSION STREQUAL "5.10")
