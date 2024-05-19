@@ -1,12 +1,5 @@
 cmake_minimum_required(VERSION 3.9)
 
-if(POLICY CMP0091)
-    cmake_policy(SET CMP0091 NEW) # Enable MSVC_RUNTIME_LIBRARY setting
-endif()
-if(POLICY CMP0092)
-    cmake_policy(SET CMP0092 NEW) # disable /W3 warning, if possible
-endif()
-
 project(libuv LANGUAGES C)
 
 include(CMakePackageConfigHelpers)
@@ -43,18 +36,16 @@ option(MSAN "Enable MemorySanitizer (MSan)" OFF)
 option(TSAN "Enable ThreadSanitizer (TSan)" OFF)
 option(UBSAN "Enable UndefinedBehaviorSanitizer (UBSan)" OFF)
 
-if(MSAN AND NOT CMAKE_C_COMPILER_ID MATCHES "AppleClang|Clang")
+if(MSAN AND NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
     message(SEND_ERROR "MemorySanitizer requires clang. Try again with -DCMAKE_C_COMPILER=clang")
 endif()
 
 if(ASAN)
     list(APPEND uv_defines __ASAN__=1)
-    if(CMAKE_C_COMPILER_ID MATCHES "AppleClang|GNU|Clang")
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
         set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-omit-frame-pointer -fsanitize=address")
         set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fno-omit-frame-pointer -fsanitize=address")
         set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fno-omit-frame-pointer -fsanitize=address")
-    elseif(MSVC)
-        set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /fsanitize=address")
     else()
         message(SEND_ERROR "AddressSanitizer support requires clang, gcc, or msvc. Try again with -DCMAKE_C_COMPILER.")
     endif()
@@ -69,7 +60,7 @@ endif()
 
 if(TSAN)
     list(APPEND uv_defines __TSAN__=1)
-    if(CMAKE_C_COMPILER_ID MATCHES "AppleClang|GNU|Clang")
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
         set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-omit-frame-pointer -fsanitize=thread")
         set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fno-omit-frame-pointer -fsanitize=thread")
         set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fno-omit-frame-pointer -fsanitize=thread")
@@ -80,84 +71,30 @@ endif()
 
 if(UBSAN)
     list(APPEND uv_defines __UBSAN__=1)
-    if(CMAKE_C_COMPILER_ID MATCHES "AppleClang|GNU|Clang")
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
         set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-omit-frame-pointer -fsanitize=undefined")
         set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fno-omit-frame-pointer -fsanitize=undefined")
         set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fno-omit-frame-pointer -fsanitize=undefined")
-    elseif(MSVC)
-        set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /fsanitize=undefined")
     else()
         message(SEND_ERROR "UndefinedBehaviorSanitizer support requires clang, gcc, or msvc. Try again with -DCMAKE_C_COMPILER.")
     endif()
 endif()
 
 # Compiler check
-string(CONCAT is-msvc $<OR:
-    $<C_COMPILER_ID:MSVC>,
-    $<STREQUAL:${CMAKE_C_COMPILER_FRONTEND_VARIANT},MSVC>
-    >)
-
-check_c_compiler_flag(/W4 UV_LINT_W4)
-check_c_compiler_flag(/wd4100 UV_LINT_NO_UNUSED_PARAMETER_MSVC)
-check_c_compiler_flag(/wd4127 UV_LINT_NO_CONDITIONAL_CONSTANT_MSVC)
-check_c_compiler_flag(/wd4201 UV_LINT_NO_NONSTANDARD_MSVC)
-check_c_compiler_flag(/wd4206 UV_LINT_NO_NONSTANDARD_EMPTY_TU_MSVC)
-check_c_compiler_flag(/wd4210 UV_LINT_NO_NONSTANDARD_FILE_SCOPE_MSVC)
-check_c_compiler_flag(/wd4232 UV_LINT_NO_NONSTANDARD_NONSTATIC_DLIMPORT_MSVC)
-check_c_compiler_flag(/wd4456 UV_LINT_NO_HIDES_LOCAL)
-check_c_compiler_flag(/wd4457 UV_LINT_NO_HIDES_PARAM)
-check_c_compiler_flag(/wd4459 UV_LINT_NO_HIDES_GLOBAL)
-check_c_compiler_flag(/wd4706 UV_LINT_NO_CONDITIONAL_ASSIGNMENT_MSVC)
-check_c_compiler_flag(/wd4996 UV_LINT_NO_UNSAFE_MSVC)
-
 check_c_compiler_flag(-Wall UV_LINT_WALL) # DO NOT use this under MSVC
-
-# TODO: Place these into its own function
 check_c_compiler_flag(-Wno-unused-parameter UV_LINT_NO_UNUSED_PARAMETER)
 check_c_compiler_flag(-Wstrict-prototypes UV_LINT_STRICT_PROTOTYPES)
 check_c_compiler_flag(-Wextra UV_LINT_EXTRA)
-
-check_c_compiler_flag(/utf-8 UV_LINT_UTF8_MSVC)
+check_c_compiler_flag(-fno-strict-aliasing UV_F_STRICT_ALIASING)
 
 set(lint-no-unused-parameter $<$<BOOL:${UV_LINT_NO_UNUSED_PARAMETER}>:-Wno-unused-parameter>)
 set(lint-strict-prototypes $<$<BOOL:${UV_LINT_STRICT_PROTOTYPES}>:-Wstrict-prototypes>)
 set(lint-extra $<$<BOOL:${UV_LINT_EXTRA}>:-Wextra>)
-set(lint-w4 $<$<BOOL:${UV_LINT_W4}>:/W4>)
-set(lint-no-unused-parameter-msvc $<$<BOOL:${UV_LINT_NO_UNUSED_PARAMETER_MSVC}>:/wd4100>)
-set(lint-no-conditional-constant-msvc $<$<BOOL:${UV_LINT_NO_CONDITIONAL_CONSTANT_MSVC}>:/wd4127>)
-set(lint-no-nonstandard-msvc $<$<BOOL:${UV_LINT_NO_NONSTANDARD_MSVC}>:/wd4201>)
-set(lint-no-nonstandard-empty-tu-msvc $<$<BOOL:${UV_LINT_NO_NONSTANDARD_EMPTY_TU_MSVC}>:/wd4206>)
-set(lint-no-nonstandard-file-scope-msvc $<$<BOOL:${UV_LINT_NO_NONSTANDARD_FILE_SCOPE_MSVC}>:/wd4210>)
-set(lint-no-nonstandard-nonstatic-dlimport-msvc $<$<BOOL:${UV_LINT_NO_NONSTANDARD_NONSTATIC_DLIMPORT_MSVC}>:/wd4232>)
-set(lint-no-hides-local-msvc $<$<BOOL:${UV_LINT_NO_HIDES_LOCAL}>:/wd4456>)
-set(lint-no-hides-param-msvc $<$<BOOL:${UV_LINT_NO_HIDES_PARAM}>:/wd4457>)
-set(lint-no-hides-global-msvc $<$<BOOL:${UV_LINT_NO_HIDES_GLOBAL}>:/wd4459>)
-set(lint-no-conditional-assignment-msvc $<$<BOOL:${UV_LINT_NO_CONDITIONAL_ASSIGNMENT_MSVC}>:/wd4706>)
-set(lint-no-unsafe-msvc $<$<BOOL:${UV_LINT_NO_UNSAFE_MSVC}>:/wd4996>)
-# Unfortunately, this one is complicated because MSVC and clang-cl support -Wall
-# but using it is like calling -Weverything
-string(CONCAT lint-default $<
-    $<AND:$<BOOL:${UV_LINT_WALL}>,$<NOT:${is-msvc}>>:-Wall
-    >)
-set(lint-utf8-msvc $<$<BOOL:${UV_LINT_UTF8_MSVC}>:/utf-8>)
+set(lint-wall $<$<BOOL:${UV_LINT_WALL}>:-Wall>)
+set(lint-no-strict-aliasing $<$<BOOL:${UV_F_STRICT_ALIASING}>:-fno-strict-aliasing>)
 
-list(APPEND uv_cflags ${lint-strict-prototypes} ${lint-extra} ${lint-default} ${lint-w4})
-list(APPEND uv_cflags ${lint-no-unused-parameter})
-list(APPEND uv_cflags ${lint-no-unused-parameter-msvc})
-list(APPEND uv_cflags ${lint-no-conditional-constant-msvc})
-list(APPEND uv_cflags ${lint-no-nonstandard-msvc})
-list(APPEND uv_cflags ${lint-no-nonstandard-empty-tu-msvc})
-list(APPEND uv_cflags ${lint-no-nonstandard-file-scope-msvc})
-list(APPEND uv_cflags ${lint-no-nonstandard-nonstatic-dlimport-msvc})
-list(APPEND uv_cflags ${lint-no-hides-local-msvc})
-list(APPEND uv_cflags ${lint-no-hides-param-msvc})
-list(APPEND uv_cflags ${lint-no-hides-global-msvc})
-list(APPEND uv_cflags ${lint-no-conditional-assignment-msvc})
-list(APPEND uv_cflags ${lint-no-unsafe-msvc})
-list(APPEND uv_cflags ${lint-utf8-msvc} )
-
-check_c_compiler_flag(-fno-strict-aliasing UV_F_STRICT_ALIASING)
-list(APPEND uv_cflags $<$<BOOL:${UV_F_STRICT_ALIASING}>:-fno-strict-aliasing>)
+list(APPEND uv_cflags ${lint-strict-prototypes} ${lint-extra} ${lint-wall}
+    ${lint-no-unused-parameter} ${lint-no-strict-aliasing})
 
 set(uv_sources
     src/fs-poll.c
@@ -199,64 +136,15 @@ list(APPEND uv_sources
     src/unix/udp.c)
 list(APPEND uv_test_sources test/runner-unix.c)
 
-if(APPLE OR CMAKE_SYSTEM_NAME MATCHES "Android|Linux")
-    list(APPEND uv_sources src/unix/proctitle.c)
-endif()
-
-if(APPLE OR CMAKE_SYSTEM_NAME MATCHES "DragonFly|FreeBSD|NetBSD|OpenBSD")
-    list(APPEND uv_sources src/unix/bsd-ifaddrs.c src/unix/kqueue.c)
-endif()
-
-if(APPLE OR CMAKE_SYSTEM_NAME STREQUAL "OpenBSD")
-    list(APPEND uv_sources src/unix/random-getentropy.c)
-endif()
-
-if(APPLE)
-    list(APPEND uv_defines _DARWIN_UNLIMITED_SELECT=1 _DARWIN_USE_64_BIT_INODE=1)
-    list(APPEND uv_sources
-        src/unix/darwin-proctitle.c
-        src/unix/darwin.c
-        src/unix/fsevents.c)
-endif()
-
-if(CMAKE_SYSTEM_NAME STREQUAL "GNU")
-    list(APPEND uv_libraries dl)
-    list(APPEND uv_sources
-        src/unix/bsd-ifaddrs.c
-        src/unix/no-fsevents.c
-        src/unix/no-proctitle.c
-        src/unix/posix-hrtime.c
-        src/unix/posix-poll.c
-        src/unix/hurd.c)
-endif()
-
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    list(APPEND uv_defines _GNU_SOURCE _POSIX_C_SOURCE=200112)
-    list(APPEND uv_libraries dl rt)
-    list(APPEND uv_sources
-        src/unix/linux.c
-        src/unix/procfs-exepath.c
-        src/unix/random-getrandom.c
-        src/unix/random-sysctl-linux.c)
-endif()
-
-if(APPLE OR CMAKE_SYSTEM_NAME MATCHES "DragonFly|FreeBSD|Linux|NetBSD|OpenBSD")
-    list(APPEND uv_test_libraries util)
-endif()
-
-if(CYGWIN OR MSYS)
-    list(APPEND uv_defines _GNU_SOURCE)
-    list(APPEND uv_sources
-        src/unix/cygwin.c
-        src/unix/bsd-ifaddrs.c
-        src/unix/no-fsevents.c
-        src/unix/no-proctitle.c
-        src/unix/posix-hrtime.c
-        src/unix/posix-poll.c
-        src/unix/procfs-exepath.c
-        src/unix/sysinfo-loadavg.c
-        src/unix/sysinfo-memory.c)
-endif()
+list(APPEND uv_sources src/unix/proctitle.c)
+list(APPEND uv_defines _GNU_SOURCE _POSIX_C_SOURCE=200112)
+list(APPEND uv_libraries dl rt)
+list(APPEND uv_sources
+    src/unix/linux.c
+    src/unix/procfs-exepath.c
+    src/unix/random-getrandom.c
+    src/unix/random-sysctl-linux.c)
+list(APPEND uv_test_libraries util)
 
 if(LIBUV_BUILD_SHARED)
     add_library(uv SHARED ${uv_sources})
@@ -290,10 +178,6 @@ target_include_directories(uv_a
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     PRIVATE
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>)
-if(CMAKE_SYSTEM_NAME STREQUAL "OS390")
-    target_include_directories(uv_a PUBLIC $<BUILD_INTERFACE:${ZOSLIB_DIR}/include>)
-    set_target_properties(uv_a PROPERTIES LINKER_LANGUAGE CXX)
-endif()
 target_link_libraries(uv_a ${uv_libraries})
 set_target_properties(uv_a PROPERTIES OUTPUT_NAME "uv")
 
@@ -515,10 +399,6 @@ if(LIBUV_BUILD_TESTS)
     add_test(NAME uv_test
         COMMAND uv_run_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-    if(CMAKE_SYSTEM_NAME STREQUAL "OS390")
-        set_tests_properties(uv_test PROPERTIES ENVIRONMENT
-            "LIBPATH=${CMAKE_BINARY_DIR}:$ENV{LIBPATH}")
-    endif()
     add_executable(uv_run_tests_a ${uv_test_sources} uv_win_longpath.manifest)
     target_compile_definitions(uv_run_tests_a PRIVATE ${uv_defines})
     target_compile_options(uv_run_tests_a PRIVATE ${uv_cflags})
@@ -530,11 +410,6 @@ if(LIBUV_BUILD_TESTS)
     add_test(NAME uv_test_a
         COMMAND uv_run_tests_a
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-    if(CMAKE_SYSTEM_NAME STREQUAL "OS390")
-        set_target_properties(uv_run_benchmarks_a PROPERTIES LINKER_LANGUAGE CXX)
-        set_target_properties(uv_run_tests PROPERTIES LINKER_LANGUAGE CXX)
-        set_target_properties(uv_run_tests_a PROPERTIES LINKER_LANGUAGE CXX)
-    endif()
 endif()
 
 # Now for some gibbering horrors from beyond the stars...
