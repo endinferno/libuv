@@ -19,41 +19,42 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 
 
-TEST_IMPL(tcp_flags) {
-  uv_loop_t* loop;
-  uv_tcp_t handle;
-  int r;
+TEST_IMPL(tcp_flags)
+{
+    uv_loop_t* loop;
+    uv_tcp_t handle;
+    int r;
 
-  loop = uv_default_loop();
+    loop = uv_default_loop();
 
-  /* Use _ex to make sure the socket is created. */
-  r = uv_tcp_init_ex(loop, &handle, AF_INET);
-  ASSERT_OK(r);
+    /* Use _ex to make sure the socket is created. */
+    r = uv_tcp_init_ex(loop, &handle, AF_INET);
+    ASSERT_OK(r);
 
-  r = uv_tcp_nodelay(&handle, 1);
-  ASSERT_OK(r);
+    r = uv_tcp_nodelay(&handle, 1);
+    ASSERT_OK(r);
 
-  r = uv_tcp_keepalive(&handle, 1, 60);
-  ASSERT_OK(r);
+    r = uv_tcp_keepalive(&handle, 1, 60);
+    ASSERT_OK(r);
 
-  r = uv_tcp_keepalive(&handle, 0, 0);
-  ASSERT_OK(r);
+    r = uv_tcp_keepalive(&handle, 0, 0);
+    ASSERT_OK(r);
 
-  r = uv_tcp_keepalive(&handle, 1, 0);
-  ASSERT_EQ(r, UV_EINVAL);
+    r = uv_tcp_keepalive(&handle, 1, 0);
+    ASSERT_EQ(r, UV_EINVAL);
 
-  uv_close((uv_handle_t*)&handle, NULL);
+    uv_close((uv_handle_t*)&handle, NULL);
 
-  r = uv_run(loop, UV_RUN_DEFAULT);
-  ASSERT_OK(r);
+    r = uv_run(loop, UV_RUN_DEFAULT);
+    ASSERT_OK(r);
 
-  MAKE_VALGRIND_HAPPY(loop);
-  return 0;
+    MAKE_VALGRIND_HAPPY(loop);
+    return 0;
 }

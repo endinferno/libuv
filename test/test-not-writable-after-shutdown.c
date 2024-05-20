@@ -19,51 +19,51 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 
 static uv_shutdown_t shutdown_req;
 
-static void close_cb(uv_handle_t* handle) {
+static void close_cb(uv_handle_t* handle)
+{}
 
+static void shutdown_cb(uv_shutdown_t* req, int status)
+{
+    uv_close((uv_handle_t*)req->handle, close_cb);
 }
 
-static void shutdown_cb(uv_shutdown_t* req, int status) {
-  uv_close((uv_handle_t*) req->handle, close_cb);
+static void connect_cb(uv_connect_t* req, int status)
+{
+    int r;
+    ASSERT_OK(status);
+
+    r = uv_shutdown(&shutdown_req, req->handle, shutdown_cb);
+    ASSERT_OK(r);
+
+    ASSERT_OK(uv_is_writable(req->handle));
 }
 
-static void connect_cb(uv_connect_t* req, int status) {
-  int r;
-  ASSERT_OK(status);
+TEST_IMPL(not_writable_after_shutdown)
+{
+    int r;
+    struct sockaddr_in addr;
+    uv_loop_t* loop;
+    uv_tcp_t socket;
+    uv_connect_t connect_req;
 
-  r = uv_shutdown(&shutdown_req, req->handle, shutdown_cb);
-  ASSERT_OK(r);
+    ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+    loop = uv_default_loop();
 
-  ASSERT_OK(uv_is_writable(req->handle));
-}
+    r = uv_tcp_init(loop, &socket);
+    ASSERT_OK(r);
 
-TEST_IMPL(not_writable_after_shutdown) {
-  int r;
-  struct sockaddr_in addr;
-  uv_loop_t* loop;
-  uv_tcp_t socket;
-  uv_connect_t connect_req;
+    r = uv_tcp_connect(
+        &connect_req, &socket, (const struct sockaddr*)&addr, connect_cb);
+    ASSERT_OK(r);
 
-  ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
-  loop = uv_default_loop();
+    r = uv_run(loop, UV_RUN_DEFAULT);
+    ASSERT_OK(r);
 
-  r = uv_tcp_init(loop, &socket);
-  ASSERT_OK(r);
-
-  r = uv_tcp_connect(&connect_req,
-                     &socket,
-                     (const struct sockaddr*) &addr,
-                     connect_cb);
-  ASSERT_OK(r);
-
-  r = uv_run(loop, UV_RUN_DEFAULT);
-  ASSERT_OK(r);
-
-  MAKE_VALGRIND_HAPPY(loop);
-  return 0;
+    MAKE_VALGRIND_HAPPY(loop);
+    return 0;
 }

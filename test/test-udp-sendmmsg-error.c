@@ -19,8 +19,8 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,42 +34,45 @@ static int send_cb_called;
 static int close_cb_called;
 
 
-static void close_cb(uv_handle_t* handle) {
-  ASSERT_PTR_EQ(handle, &client);
-  ASSERT(uv_is_closing(handle));
-  close_cb_called++;
+static void close_cb(uv_handle_t* handle)
+{
+    ASSERT_PTR_EQ(handle, &client);
+    ASSERT(uv_is_closing(handle));
+    close_cb_called++;
 }
 
 
-static void send_cb(uv_udp_send_t* req, int status) {
-  if (status != 0)
-    ASSERT_EQ(status, UV_ECONNREFUSED);
+static void send_cb(uv_udp_send_t* req, int status)
+{
+    if (status != 0)
+        ASSERT_EQ(status, UV_ECONNREFUSED);
 
-  if (++send_cb_called == DATAGRAMS)
-    uv_close((uv_handle_t*)&client, close_cb);
+    if (++send_cb_called == DATAGRAMS)
+        uv_close((uv_handle_t*)&client, close_cb);
 }
 
 
-TEST_IMPL(udp_sendmmsg_error) {
-  struct sockaddr_in addr;
-  uv_buf_t buf;
-  int i;
+TEST_IMPL(udp_sendmmsg_error)
+{
+    struct sockaddr_in addr;
+    uv_buf_t buf;
+    int i;
 
-  ASSERT_OK(uv_udp_init(uv_default_loop(), &client));
-  ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
-  ASSERT_OK(uv_udp_connect(&client, (const struct sockaddr*)&addr));
+    ASSERT_OK(uv_udp_init(uv_default_loop(), &client));
+    ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+    ASSERT_OK(uv_udp_connect(&client, (const struct sockaddr*)&addr));
 
-  buf = uv_buf_init("TEST", 4);
-  for (i = 0; i < DATAGRAMS; ++i)
-    ASSERT_OK(uv_udp_send(&req[i], &client, &buf, 1, NULL, send_cb));
+    buf = uv_buf_init("TEST", 4);
+    for (i = 0; i < DATAGRAMS; ++i)
+        ASSERT_OK(uv_udp_send(&req[i], &client, &buf, 1, NULL, send_cb));
 
-  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+    uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  ASSERT_EQ(1, close_cb_called);
-  ASSERT_EQ(DATAGRAMS, send_cb_called);
+    ASSERT_EQ(1, close_cb_called);
+    ASSERT_EQ(DATAGRAMS, send_cb_called);
 
-  ASSERT_OK(client.send_queue_size);
+    ASSERT_OK(client.send_queue_size);
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
-  return 0;
+    MAKE_VALGRIND_HAPPY(uv_default_loop());
+    return 0;
 }

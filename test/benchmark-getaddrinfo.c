@@ -19,8 +19,8 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 #include <stdlib.h>
 
 #define CONCURRENT_CALLS 10
@@ -42,51 +42,55 @@ static void getaddrinfo_initiate(uv_getaddrinfo_t* handle);
 
 
 static void getaddrinfo_cb(uv_getaddrinfo_t* handle, int status,
-    struct addrinfo* res) {
-  ASSERT_OK(status);
-  calls_completed++;
-  if (calls_initiated < TOTAL_CALLS) {
-    getaddrinfo_initiate(handle);
-  }
+                           struct addrinfo* res)
+{
+    ASSERT_OK(status);
+    calls_completed++;
+    if (calls_initiated < TOTAL_CALLS) {
+        getaddrinfo_initiate(handle);
+    }
 
-  uv_freeaddrinfo(res);
+    uv_freeaddrinfo(res);
 }
 
 
-static void getaddrinfo_initiate(uv_getaddrinfo_t* handle) {
-  int r;
+static void getaddrinfo_initiate(uv_getaddrinfo_t* handle)
+{
+    int r;
 
-  calls_initiated++;
+    calls_initiated++;
 
-  r = uv_getaddrinfo(loop, handle, &getaddrinfo_cb, name, NULL, NULL);
-  ASSERT_OK(r);
+    r = uv_getaddrinfo(loop, handle, &getaddrinfo_cb, name, NULL, NULL);
+    ASSERT_OK(r);
 }
 
 
-BENCHMARK_IMPL(getaddrinfo) {
-  int i;
+BENCHMARK_IMPL(getaddrinfo)
+{
+    int i;
 
-  loop = uv_default_loop();
+    loop = uv_default_loop();
 
-  uv_update_time(loop);
-  start_time = uv_now(loop);
+    uv_update_time(loop);
+    start_time = uv_now(loop);
 
-  for (i = 0; i < CONCURRENT_CALLS; i++) {
-    getaddrinfo_initiate(&handles[i]);
-  }
+    for (i = 0; i < CONCURRENT_CALLS; i++) {
+        getaddrinfo_initiate(&handles[i]);
+    }
 
-  uv_run(loop, UV_RUN_DEFAULT);
+    uv_run(loop, UV_RUN_DEFAULT);
 
-  uv_update_time(loop);
-  end_time = uv_now(loop);
+    uv_update_time(loop);
+    end_time = uv_now(loop);
 
-  ASSERT_EQ(calls_initiated, TOTAL_CALLS);
-  ASSERT_EQ(calls_completed, TOTAL_CALLS);
+    ASSERT_EQ(calls_initiated, TOTAL_CALLS);
+    ASSERT_EQ(calls_completed, TOTAL_CALLS);
 
-  fprintf(stderr, "getaddrinfo: %.0f req/s\n",
-          (double) calls_completed / (double) (end_time - start_time) * 1000.0);
-  fflush(stderr);
+    fprintf(stderr,
+            "getaddrinfo: %.0f req/s\n",
+            (double)calls_completed / (double)(end_time - start_time) * 1000.0);
+    fflush(stderr);
 
-  MAKE_VALGRIND_HAPPY(loop);
-  return 0;
+    MAKE_VALGRIND_HAPPY(loop);
+    return 0;
 }

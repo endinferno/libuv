@@ -25,54 +25,54 @@
 #include "uv-common.h"
 
 #include <assert.h>
+#include <errno.h>
+#include <fcntl.h>  /* O_CLOEXEC and O_NONBLOCK, if supported. */
 #include <limits.h> /* _POSIX_PATH_MAX, PATH_MAX */
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h> /* abort */
 #include <string.h> /* strrchr */
-#include <fcntl.h>  /* O_CLOEXEC and O_NONBLOCK, if supported. */
-#include <stdio.h>
-#include <errno.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#define uv__msan_unpoison(p, n)                                               \
-  do {                                                                        \
-    (void) (p);                                                               \
-    (void) (n);                                                               \
-  } while (0)
+#define uv__msan_unpoison(p, n) \
+    do {                        \
+        (void)(p);              \
+        (void)(n);              \
+    } while (0)
 
 #if defined(__has_feature)
-# if __has_feature(memory_sanitizer)
-#  include <sanitizer/msan_interface.h>
-#  undef uv__msan_unpoison
-#  define uv__msan_unpoison __msan_unpoison
-# endif
+#    if __has_feature(memory_sanitizer)
+#        include <sanitizer/msan_interface.h>
+#        undef uv__msan_unpoison
+#        define uv__msan_unpoison __msan_unpoison
+#    endif
 #endif
 
 #if defined(__STRICT_ANSI__)
-# define inline __inline
+#    define inline __inline
 #endif
 
 #if defined(__MVS__)
-# include "os390-syscalls.h"
+#    include "os390-syscalls.h"
 #endif /* __MVS__ */
 
 #if defined(__sun)
-# include <sys/port.h>
-# include <port.h>
+#    include <port.h>
+#    include <sys/port.h>
 #endif /* __sun */
 
 #if defined(_AIX)
-# define reqevents events
-# define rtnevents revents
-# include <sys/poll.h>
+#    define reqevents events
+#    define rtnevents revents
+#    include <sys/poll.h>
 #else
-# include <poll.h>
+#    include <poll.h>
 #endif /* _AIX */
 
 #if defined(__APPLE__) && !TARGET_OS_IPHONE
-# include <AvailabilityMacros.h>
+#    include <AvailabilityMacros.h>
 #endif
 
 /*
@@ -81,67 +81,64 @@
  * - gcc-7+ uses __SANITIZE_THREAD__
  */
 #if defined(__has_feature)
-# if __has_feature(thread_sanitizer)
-#  define __SANITIZE_THREAD__ 1
-# endif
+#    if __has_feature(thread_sanitizer)
+#        define __SANITIZE_THREAD__ 1
+#    endif
 #endif
 
 #if defined(PATH_MAX)
-# define UV__PATH_MAX PATH_MAX
+#    define UV__PATH_MAX PATH_MAX
 #else
-# define UV__PATH_MAX 8192
+#    define UV__PATH_MAX 8192
 #endif
 
-union uv__sockaddr {
-  struct sockaddr_in6 in6;
-  struct sockaddr_in in;
-  struct sockaddr addr;
+union uv__sockaddr
+{
+    struct sockaddr_in6 in6;
+    struct sockaddr_in in;
+    struct sockaddr addr;
 };
 
-#define ACCESS_ONCE(type, var)                                                \
-  (*(volatile type*) &(var))
+#define ACCESS_ONCE(type, var) (*(volatile type*)&(var))
 
-#define ROUND_UP(a, b)                                                        \
-  ((a) % (b) ? ((a) + (b)) - ((a) % (b)) : (a))
+#define ROUND_UP(a, b) ((a) % (b) ? ((a) + (b)) - ((a) % (b)) : (a))
 
-#define UNREACHABLE()                                                         \
-  do {                                                                        \
-    assert(0 && "unreachable code");                                          \
-    abort();                                                                  \
-  }                                                                           \
-  while (0)
+#define UNREACHABLE()                    \
+    do {                                 \
+        assert(0 && "unreachable code"); \
+        abort();                         \
+    } while (0)
 
-#define SAVE_ERRNO(block)                                                     \
-  do {                                                                        \
-    int _saved_errno = errno;                                                 \
-    do { block; } while (0);                                                  \
-    errno = _saved_errno;                                                     \
-  }                                                                           \
-  while (0)
+#define SAVE_ERRNO(block)         \
+    do {                          \
+        int _saved_errno = errno; \
+        do {                      \
+            block;                \
+        } while (0);              \
+        errno = _saved_errno;     \
+    } while (0)
 
 /* The __clang__ and __INTEL_COMPILER checks are superfluous because they
  * define __GNUC__. They are here to convey to you, dear reader, that these
  * macros are enabled when compiling with clang or icc.
  */
-#if defined(__clang__) ||                                                     \
-    defined(__GNUC__) ||                                                      \
-    defined(__INTEL_COMPILER)
-# define UV_UNUSED(declaration)     __attribute__((unused)) declaration
+#if defined(__clang__) || defined(__GNUC__) || defined(__INTEL_COMPILER)
+#    define UV_UNUSED(declaration) __attribute__((unused)) declaration
 #else
-# define UV_UNUSED(declaration)     declaration
+#    define UV_UNUSED(declaration) declaration
 #endif
 
 /* Leans on the fact that, on Linux, POLLRDHUP == EPOLLRDHUP. */
 #ifdef POLLRDHUP
-# define UV__POLLRDHUP POLLRDHUP
+#    define UV__POLLRDHUP POLLRDHUP
 #else
-# define UV__POLLRDHUP 0x2000
+#    define UV__POLLRDHUP 0x2000
 #endif
 
 #ifdef POLLPRI
-# define UV__POLLPRI POLLPRI
+#    define UV__POLLPRI POLLPRI
 #else
-# define UV__POLLPRI 0
+#    define UV__POLLPRI 0
 #endif
 
 #if !defined(O_CLOEXEC) && defined(__FreeBSD__)
@@ -149,78 +146,80 @@ union uv__sockaddr {
  * It may be that we are just missing `__POSIX_VISIBLE >= 200809`.
  * Try using fixed value const and give up, if it doesn't work
  */
-# define O_CLOEXEC 0x00100000
+#    define O_CLOEXEC 0x00100000
 #endif
 
 typedef struct uv__stream_queued_fds_s uv__stream_queued_fds_t;
 
 /* loop flags */
-enum {
-  UV_LOOP_BLOCK_SIGPROF = 0x1,
-  UV_LOOP_REAP_CHILDREN = 0x2
+enum
+{
+    UV_LOOP_BLOCK_SIGPROF = 0x1,
+    UV_LOOP_REAP_CHILDREN = 0x2
 };
 
 /* flags of excluding ifaddr */
-enum {
-  UV__EXCLUDE_IFPHYS,
-  UV__EXCLUDE_IFADDR
+enum
+{
+    UV__EXCLUDE_IFPHYS,
+    UV__EXCLUDE_IFADDR
 };
 
-typedef enum {
-  UV_CLOCK_PRECISE = 0,  /* Use the highest resolution clock available. */
-  UV_CLOCK_FAST = 1      /* Use the fastest clock with <= 1ms granularity. */
+typedef enum
+{
+    UV_CLOCK_PRECISE = 0, /* Use the highest resolution clock available. */
+    UV_CLOCK_FAST = 1     /* Use the fastest clock with <= 1ms granularity. */
 } uv_clocktype_t;
 
-struct uv__stream_queued_fds_s {
-  unsigned int size;
-  unsigned int offset;
-  int fds[1];
+struct uv__stream_queued_fds_s
+{
+    unsigned int size;
+    unsigned int offset;
+    int fds[1];
 };
 
 #ifdef __linux__
-struct uv__statx_timestamp {
-  int64_t tv_sec;
-  uint32_t tv_nsec;
-  int32_t unused0;
+struct uv__statx_timestamp
+{
+    int64_t tv_sec;
+    uint32_t tv_nsec;
+    int32_t unused0;
 };
 
-struct uv__statx {
-  uint32_t stx_mask;
-  uint32_t stx_blksize;
-  uint64_t stx_attributes;
-  uint32_t stx_nlink;
-  uint32_t stx_uid;
-  uint32_t stx_gid;
-  uint16_t stx_mode;
-  uint16_t unused0;
-  uint64_t stx_ino;
-  uint64_t stx_size;
-  uint64_t stx_blocks;
-  uint64_t stx_attributes_mask;
-  struct uv__statx_timestamp stx_atime;
-  struct uv__statx_timestamp stx_btime;
-  struct uv__statx_timestamp stx_ctime;
-  struct uv__statx_timestamp stx_mtime;
-  uint32_t stx_rdev_major;
-  uint32_t stx_rdev_minor;
-  uint32_t stx_dev_major;
-  uint32_t stx_dev_minor;
-  uint64_t unused1[14];
+struct uv__statx
+{
+    uint32_t stx_mask;
+    uint32_t stx_blksize;
+    uint64_t stx_attributes;
+    uint32_t stx_nlink;
+    uint32_t stx_uid;
+    uint32_t stx_gid;
+    uint16_t stx_mode;
+    uint16_t unused0;
+    uint64_t stx_ino;
+    uint64_t stx_size;
+    uint64_t stx_blocks;
+    uint64_t stx_attributes_mask;
+    struct uv__statx_timestamp stx_atime;
+    struct uv__statx_timestamp stx_btime;
+    struct uv__statx_timestamp stx_ctime;
+    struct uv__statx_timestamp stx_mtime;
+    uint32_t stx_rdev_major;
+    uint32_t stx_rdev_minor;
+    uint32_t stx_dev_major;
+    uint32_t stx_dev_minor;
+    uint64_t unused1[14];
 };
 #endif /* __linux__ */
 
-#if defined(_AIX) || \
-    defined(__APPLE__) || \
-    defined(__DragonFly__) || \
-    defined(__FreeBSD__) || \
-    defined(__linux__) || \
-    defined(__OpenBSD__) || \
+#if defined(_AIX) || defined(__APPLE__) || defined(__DragonFly__) ||      \
+    defined(__FreeBSD__) || defined(__linux__) || defined(__OpenBSD__) || \
     defined(__NetBSD__)
-#define uv__nonblock uv__nonblock_ioctl
-#define UV__NONBLOCK_IS_IOCTL 1
+#    define uv__nonblock uv__nonblock_ioctl
+#    define UV__NONBLOCK_IS_IOCTL 1
 #else
-#define uv__nonblock uv__nonblock_fcntl
-#define UV__NONBLOCK_IS_IOCTL 0
+#    define uv__nonblock uv__nonblock_fcntl
+#    define UV__NONBLOCK_IS_IOCTL 0
 #endif
 
 /* On Linux, uv__nonblock_fcntl() and uv__nonblock_ioctl() do not commute
@@ -231,8 +230,8 @@ struct uv__statx {
  * commutes with uv__nonblock().
  */
 #if defined(__linux__) && O_NDELAY != O_NONBLOCK
-#undef uv__nonblock
-#define uv__nonblock uv__nonblock_fcntl
+#    undef uv__nonblock
+#    define uv__nonblock uv__nonblock_fcntl
 #endif
 
 /* core */
@@ -243,7 +242,7 @@ int uv__close(int fd); /* preserves errno */
 int uv__close_nocheckstdio(int fd);
 int uv__close_nocancel(int fd);
 int uv__socket(int domain, int type, int protocol);
-ssize_t uv__recvmsg(int fd, struct msghdr *msg, int flags);
+ssize_t uv__recvmsg(int fd, struct msghdr* msg, int flags);
 void uv__make_close_pending(uv_handle_t* handle);
 int uv__getiovmax(void);
 
@@ -269,8 +268,7 @@ void uv__run_check(uv_loop_t* loop);
 void uv__run_prepare(uv_loop_t* loop);
 
 /* stream */
-void uv__stream_init(uv_loop_t* loop, uv_stream_t* stream,
-    uv_handle_type type);
+void uv__stream_init(uv_loop_t* loop, uv_stream_t* stream, uv_handle_type type);
 int uv__stream_open(uv_stream_t*, int fd, int flags);
 void uv__stream_destroy(uv_stream_t* stream);
 #if defined(__APPLE__)
@@ -332,40 +330,34 @@ int uv__random_sysctl(void* buf, size_t buflen);
 /* io_uring */
 #ifdef __linux__
 int uv__iou_fs_close(uv_loop_t* loop, uv_fs_t* req);
-int uv__iou_fs_fsync_or_fdatasync(uv_loop_t* loop,
-                                  uv_fs_t* req,
+int uv__iou_fs_fsync_or_fdatasync(uv_loop_t* loop, uv_fs_t* req,
                                   uint32_t fsync_flags);
 int uv__iou_fs_link(uv_loop_t* loop, uv_fs_t* req);
 int uv__iou_fs_mkdir(uv_loop_t* loop, uv_fs_t* req);
 int uv__iou_fs_open(uv_loop_t* loop, uv_fs_t* req);
-int uv__iou_fs_read_or_write(uv_loop_t* loop,
-                             uv_fs_t* req,
-                             int is_read);
+int uv__iou_fs_read_or_write(uv_loop_t* loop, uv_fs_t* req, int is_read);
 int uv__iou_fs_rename(uv_loop_t* loop, uv_fs_t* req);
-int uv__iou_fs_statx(uv_loop_t* loop,
-                     uv_fs_t* req,
-                     int is_fstat,
-                     int is_lstat);
+int uv__iou_fs_statx(uv_loop_t* loop, uv_fs_t* req, int is_fstat, int is_lstat);
 int uv__iou_fs_symlink(uv_loop_t* loop, uv_fs_t* req);
 int uv__iou_fs_unlink(uv_loop_t* loop, uv_fs_t* req);
 #else
-#define uv__iou_fs_close(loop, req) 0
-#define uv__iou_fs_fsync_or_fdatasync(loop, req, fsync_flags) 0
-#define uv__iou_fs_link(loop, req) 0
-#define uv__iou_fs_mkdir(loop, req) 0
-#define uv__iou_fs_open(loop, req) 0
-#define uv__iou_fs_read_or_write(loop, req, is_read) 0
-#define uv__iou_fs_rename(loop, req) 0
-#define uv__iou_fs_statx(loop, req, is_fstat, is_lstat) 0
-#define uv__iou_fs_symlink(loop, req) 0
-#define uv__iou_fs_unlink(loop, req) 0
+#    define uv__iou_fs_close(loop, req) 0
+#    define uv__iou_fs_fsync_or_fdatasync(loop, req, fsync_flags) 0
+#    define uv__iou_fs_link(loop, req) 0
+#    define uv__iou_fs_mkdir(loop, req) 0
+#    define uv__iou_fs_open(loop, req) 0
+#    define uv__iou_fs_read_or_write(loop, req, is_read) 0
+#    define uv__iou_fs_rename(loop, req) 0
+#    define uv__iou_fs_statx(loop, req, is_fstat, is_lstat) 0
+#    define uv__iou_fs_symlink(loop, req) 0
+#    define uv__iou_fs_unlink(loop, req) 0
 #endif
 
 #if defined(__APPLE__)
 int uv___stream_fd(const uv_stream_t* handle);
-#define uv__stream_fd(handle) (uv___stream_fd((const uv_stream_t*) (handle)))
+#    define uv__stream_fd(handle) (uv___stream_fd((const uv_stream_t*)(handle)))
 #else
-#define uv__stream_fd(handle) ((handle)->io_watcher.fd)
+#    define uv__stream_fd(handle) ((handle)->io_watcher.fd)
 #endif /* defined(__APPLE__) */
 
 int uv__make_pipe(int fds[2], int flags);
@@ -378,65 +370,62 @@ void uv__fsevents_loop_delete(uv_loop_t* loop);
 
 #endif /* defined(__APPLE__) */
 
-UV_UNUSED(static void uv__update_time(uv_loop_t* loop)) {
-  /* Use a fast time source if available.  We only need millisecond precision.
-   */
-  loop->time = uv__hrtime(UV_CLOCK_FAST) / 1000000;
+UV_UNUSED(static void uv__update_time(uv_loop_t* loop))
+{
+    /* Use a fast time source if available.  We only need millisecond precision.
+     */
+    loop->time = uv__hrtime(UV_CLOCK_FAST) / 1000000;
 }
 
-UV_UNUSED(static char* uv__basename_r(const char* path)) {
-  char* s;
+UV_UNUSED(static char* uv__basename_r(const char* path))
+{
+    char* s;
 
-  s = strrchr(path, '/');
-  if (s == NULL)
-    return (char*) path;
+    s = strrchr(path, '/');
+    if (s == NULL)
+        return (char*)path;
 
-  return s + 1;
+    return s + 1;
 }
 
-UV_UNUSED(static int uv__fstat(int fd, struct stat* s)) {
-  int rc;
+UV_UNUSED(static int uv__fstat(int fd, struct stat* s))
+{
+    int rc;
 
-  rc = fstat(fd, s);
-  if (rc >= 0)
-    uv__msan_unpoison(s, sizeof(*s));
+    rc = fstat(fd, s);
+    if (rc >= 0)
+        uv__msan_unpoison(s, sizeof(*s));
 
-  return rc;
+    return rc;
 }
 
-UV_UNUSED(static int uv__lstat(const char* path, struct stat* s)) {
-  int rc;
+UV_UNUSED(static int uv__lstat(const char* path, struct stat* s))
+{
+    int rc;
 
-  rc = lstat(path, s);
-  if (rc >= 0)
-    uv__msan_unpoison(s, sizeof(*s));
+    rc = lstat(path, s);
+    if (rc >= 0)
+        uv__msan_unpoison(s, sizeof(*s));
 
-  return rc;
+    return rc;
 }
 
-UV_UNUSED(static int uv__stat(const char* path, struct stat* s)) {
-  int rc;
+UV_UNUSED(static int uv__stat(const char* path, struct stat* s))
+{
+    int rc;
 
-  rc = stat(path, s);
-  if (rc >= 0)
-    uv__msan_unpoison(s, sizeof(*s));
+    rc = stat(path, s);
+    if (rc >= 0)
+        uv__msan_unpoison(s, sizeof(*s));
 
-  return rc;
+    return rc;
 }
 
 #if defined(__linux__)
 void uv__fs_post(uv_loop_t* loop, uv_fs_t* req);
-ssize_t
-uv__fs_copy_file_range(int fd_in,
-                       off_t* off_in,
-                       int fd_out,
-                       off_t* off_out,
-                       size_t len,
-                       unsigned int flags);
-int uv__statx(int dirfd,
-              const char* path,
-              int flags,
-              unsigned int mask,
+ssize_t uv__fs_copy_file_range(int fd_in, off_t* off_in, int fd_out,
+                               off_t* off_out, size_t len, unsigned int flags);
+int uv__statx(int dirfd, const char* path, int flags, unsigned int mask,
               struct uv__statx* statxbuf);
 void uv__statx_to_stat(const struct uv__statx* statxbuf, uv_stat_t* buf);
 ssize_t uv__getrandom(void* buf, size_t buflen, unsigned flags);
@@ -445,38 +434,32 @@ unsigned uv__kernel_version(void);
 
 typedef int (*uv__peersockfunc)(int, struct sockaddr*, socklen_t*);
 
-int uv__getsockpeername(const uv_handle_t* handle,
-                        uv__peersockfunc func,
-                        struct sockaddr* name,
-                        int* namelen);
+int uv__getsockpeername(const uv_handle_t* handle, uv__peersockfunc func,
+                        struct sockaddr* name, int* namelen);
 
 #if defined(__sun)
-#if !defined(_POSIX_VERSION) || _POSIX_VERSION < 200809L
+#    if !defined(_POSIX_VERSION) || _POSIX_VERSION < 200809L
 size_t strnlen(const char* s, size_t maxlen);
-#endif
+#    endif
 #endif
 
 #if defined(__FreeBSD__)
-ssize_t
-uv__fs_copy_file_range(int fd_in,
-                       off_t* off_in,
-                       int fd_out,
-                       off_t* off_out,
-                       size_t len,
-                       unsigned int flags);
+ssize_t uv__fs_copy_file_range(int fd_in, off_t* off_in, int fd_out,
+                               off_t* off_out, size_t len, unsigned int flags);
 #endif
 
 #if defined(__linux__) || (defined(__FreeBSD__) && __FreeBSD_version >= 1301000)
-#define UV__CPU_AFFINITY_SUPPORTED 1
+#    define UV__CPU_AFFINITY_SUPPORTED 1
 #else
-#define UV__CPU_AFFINITY_SUPPORTED 0
+#    define UV__CPU_AFFINITY_SUPPORTED 0
 #endif
 
 #ifdef __linux__
-typedef struct {
-  long long quota_per_period;
-  long long period_length;
-  double proportions;
+typedef struct
+{
+    long long quota_per_period;
+    long long period_length;
+    double proportions;
 } uv__cpu_constraint;
 
 int uv__get_constrained_cpu(uv__cpu_constraint* constraint);

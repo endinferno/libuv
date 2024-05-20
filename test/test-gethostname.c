@@ -19,40 +19,41 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 #include <string.h>
 
-TEST_IMPL(gethostname) {
-  char buf[UV_MAXHOSTNAMESIZE];
-  size_t size;
-  size_t enobufs_size;
-  int r;
+TEST_IMPL(gethostname)
+{
+    char buf[UV_MAXHOSTNAMESIZE];
+    size_t size;
+    size_t enobufs_size;
+    int r;
 
-  /* Reject invalid inputs */
-  size = 1;
-  r = uv_os_gethostname(NULL, &size);
-  ASSERT_EQ(r, UV_EINVAL);
-  r = uv_os_gethostname(buf, NULL);
-  ASSERT_EQ(r, UV_EINVAL);
-  size = 0;
-  r = uv_os_gethostname(buf, &size);
-  ASSERT_EQ(r, UV_EINVAL);
+    /* Reject invalid inputs */
+    size = 1;
+    r = uv_os_gethostname(NULL, &size);
+    ASSERT_EQ(r, UV_EINVAL);
+    r = uv_os_gethostname(buf, NULL);
+    ASSERT_EQ(r, UV_EINVAL);
+    size = 0;
+    r = uv_os_gethostname(buf, &size);
+    ASSERT_EQ(r, UV_EINVAL);
 
-  /* Return UV_ENOBUFS if the buffer cannot hold the hostname */
-  enobufs_size = 1;
-  buf[0] = '\0';
-  r = uv_os_gethostname(buf, &enobufs_size);
-  ASSERT_EQ(r, UV_ENOBUFS);
-  ASSERT_EQ(buf[0], '\0');
-  ASSERT_GT(enobufs_size, 1);
+    /* Return UV_ENOBUFS if the buffer cannot hold the hostname */
+    enobufs_size = 1;
+    buf[0] = '\0';
+    r = uv_os_gethostname(buf, &enobufs_size);
+    ASSERT_EQ(r, UV_ENOBUFS);
+    ASSERT_EQ(buf[0], '\0');
+    ASSERT_GT(enobufs_size, 1);
 
-  /* Successfully get the hostname */
-  size = UV_MAXHOSTNAMESIZE;
-  r = uv_os_gethostname(buf, &size);
-  ASSERT_OK(r);
-  ASSERT(size > 0 && size == strlen(buf));
-  ASSERT_EQ(size + 1, enobufs_size);
+    /* Successfully get the hostname */
+    size = UV_MAXHOSTNAMESIZE;
+    r = uv_os_gethostname(buf, &size);
+    ASSERT_OK(r);
+    ASSERT(size > 0 && size == strlen(buf));
+    ASSERT_EQ(size + 1, enobufs_size);
 
-  return 0;
+    return 0;
 }

@@ -19,8 +19,8 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,85 +37,78 @@ static int check_cb_called;
 #define N 5
 static int recv_cnt;
 
-static void alloc_cb(uv_handle_t* handle,
-                     size_t suggested_size,
-                     uv_buf_t* buf) {
-  static char slab[sizeof(send_data)];
-  buf->base = slab;
-  buf->len = sizeof(slab);
+static void alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf)
+{
+    static char slab[sizeof(send_data)];
+    buf->base = slab;
+    buf->len = sizeof(slab);
 }
 
-static void sv_recv_cb(uv_udp_t* handle,
-                       ssize_t nread,
-                       const uv_buf_t* rcvbuf,
-                       const struct sockaddr* addr,
-                       unsigned flags) {
-  if (++ recv_cnt < N) {
-    ASSERT_EQ(sizeof(send_data), nread);
-  } else {
-    ASSERT_OK(nread);
-  }
+static void sv_recv_cb(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
+                       const struct sockaddr* addr, unsigned flags)
+{
+    if (++recv_cnt < N) {
+        ASSERT_EQ(sizeof(send_data), nread);
+    } else {
+        ASSERT_OK(nread);
+    }
 }
 
-static void check_cb(uv_check_t* handle) {
-  ASSERT_PTR_EQ(&check_handle, handle);
+static void check_cb(uv_check_t* handle)
+{
+    ASSERT_PTR_EQ(&check_handle, handle);
 
-  /**
-   * sv_recv_cb() is called with nread set to zero to indicate
-   * there is no more udp packet in the kernel, so the actual
-   * recv_cnt is one larger than N.
-   */
-  ASSERT_EQ(N+1, recv_cnt);
-  check_cb_called = 1;
+    /**
+     * sv_recv_cb() is called with nread set to zero to indicate
+     * there is no more udp packet in the kernel, so the actual
+     * recv_cnt is one larger than N.
+     */
+    ASSERT_EQ(N + 1, recv_cnt);
+    check_cb_called = 1;
 
-  /* we are done */
-  ASSERT_OK(uv_check_stop(handle));
-  uv_close((uv_handle_t*) &client, NULL);
-  uv_close((uv_handle_t*) &check_handle, NULL);
-  uv_close((uv_handle_t*) &server, NULL);
+    /* we are done */
+    ASSERT_OK(uv_check_stop(handle));
+    uv_close((uv_handle_t*)&client, NULL);
+    uv_close((uv_handle_t*)&check_handle, NULL);
+    uv_close((uv_handle_t*)&server, NULL);
 }
 
 
-TEST_IMPL(udp_recv_in_a_row) {
-  int i, r;
-  
-  ASSERT_OK(uv_check_init(uv_default_loop(), &check_handle));
-  ASSERT_OK(uv_check_start(&check_handle, check_cb));
+TEST_IMPL(udp_recv_in_a_row)
+{
+    int i, r;
 
-  ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+    ASSERT_OK(uv_check_init(uv_default_loop(), &check_handle));
+    ASSERT_OK(uv_check_start(&check_handle, check_cb));
 
-  ASSERT_OK(uv_udp_init(uv_default_loop(), &server));
-  ASSERT_OK(uv_udp_bind(&server, (const struct sockaddr*) &addr, 0));
-  ASSERT_OK(uv_udp_recv_start(&server, alloc_cb, sv_recv_cb));
+    ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
 
-  ASSERT_OK(uv_udp_init(uv_default_loop(), &client));
+    ASSERT_OK(uv_udp_init(uv_default_loop(), &server));
+    ASSERT_OK(uv_udp_bind(&server, (const struct sockaddr*)&addr, 0));
+    ASSERT_OK(uv_udp_recv_start(&server, alloc_cb, sv_recv_cb));
 
-  /* send N-1 udp packets */
-  buf = uv_buf_init(send_data, sizeof(send_data));
-  for (i = 0; i < N - 1; i ++) {
-    r = uv_udp_try_send(&client,
-                        &buf,
-                        1,
-                        (const struct sockaddr*) &addr);
-    ASSERT_EQ(sizeof(send_data), r);
-  }
+    ASSERT_OK(uv_udp_init(uv_default_loop(), &client));
 
-  /* send an empty udp packet */
-  buf = uv_buf_init(NULL, 0);
-  r = uv_udp_try_send(&client,
-                      &buf,
-                      1,
-                      (const struct sockaddr*) &addr);
-  ASSERT_OK(r);
+    /* send N-1 udp packets */
+    buf = uv_buf_init(send_data, sizeof(send_data));
+    for (i = 0; i < N - 1; i++) {
+        r = uv_udp_try_send(&client, &buf, 1, (const struct sockaddr*)&addr);
+        ASSERT_EQ(sizeof(send_data), r);
+    }
 
-  /* check_cb() asserts that the N packets can be received
-   * before it gets called. 
-   */
+    /* send an empty udp packet */
+    buf = uv_buf_init(NULL, 0);
+    r = uv_udp_try_send(&client, &buf, 1, (const struct sockaddr*)&addr);
+    ASSERT_OK(r);
 
-  ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+    /* check_cb() asserts that the N packets can be received
+     * before it gets called.
+     */
 
-  ASSERT(check_cb_called);
+    ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
-  return 0;
+    ASSERT(check_cb_called);
+
+    MAKE_VALGRIND_HAPPY(uv_default_loop());
+    return 0;
 }

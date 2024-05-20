@@ -19,19 +19,20 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 
 #ifdef _WIN32
 
-TEST_IMPL(eintr_handling) {
-  RETURN_SKIP("Test not implemented on Windows.");
+TEST_IMPL(eintr_handling)
+{
+    RETURN_SKIP("Test not implemented on Windows.");
 }
 
-#else  /* !_WIN32 */
+#else /* !_WIN32 */
 
-#include <string.h>
-#include <unistd.h>
+#    include <string.h>
+#    include <unistd.h>
 
 static uv_loop_t* loop;
 static uv_fs_t read_req;
@@ -41,56 +42,60 @@ static char buf[32];
 static char test_buf[] = "test-buffer\n";
 int pipe_fds[2];
 
-struct thread_ctx {
-  uv_barrier_t barrier;
-  int fd;
+struct thread_ctx
+{
+    uv_barrier_t barrier;
+    int fd;
 };
 
-static void thread_main(void* arg) {
-  int nwritten;
-  ASSERT_OK(kill(getpid(), SIGUSR1));
+static void thread_main(void* arg)
+{
+    int nwritten;
+    ASSERT_OK(kill(getpid(), SIGUSR1));
 
-  do
-    nwritten = write(pipe_fds[1], test_buf, sizeof(test_buf));
-  while (nwritten == -1 && errno == EINTR);
+    do
+        nwritten = write(pipe_fds[1], test_buf, sizeof(test_buf));
+    while (nwritten == -1 && errno == EINTR);
 
-  ASSERT_EQ(nwritten, sizeof(test_buf));
+    ASSERT_EQ(nwritten, sizeof(test_buf));
 }
 
-static void sig_func(uv_signal_t* handle, int signum) {
-  uv_signal_stop(handle);
+static void sig_func(uv_signal_t* handle, int signum)
+{
+    uv_signal_stop(handle);
 }
 
-TEST_IMPL(eintr_handling) {
-  struct thread_ctx ctx;
-  uv_thread_t thread;
-  uv_signal_t signal;
-  int nread;
+TEST_IMPL(eintr_handling)
+{
+    struct thread_ctx ctx;
+    uv_thread_t thread;
+    uv_signal_t signal;
+    int nread;
 
-  iov = uv_buf_init(buf, sizeof(buf));
-  loop = uv_default_loop();
+    iov = uv_buf_init(buf, sizeof(buf));
+    loop = uv_default_loop();
 
-  ASSERT_OK(uv_signal_init(loop, &signal));
-  ASSERT_OK(uv_signal_start(&signal, sig_func, SIGUSR1));
+    ASSERT_OK(uv_signal_init(loop, &signal));
+    ASSERT_OK(uv_signal_start(&signal, sig_func, SIGUSR1));
 
-  ASSERT_OK(pipe(pipe_fds));
-  ASSERT_OK(uv_thread_create(&thread, thread_main, &ctx));
+    ASSERT_OK(pipe(pipe_fds));
+    ASSERT_OK(uv_thread_create(&thread, thread_main, &ctx));
 
-  nread = uv_fs_read(loop, &read_req, pipe_fds[0], &iov, 1, -1, NULL);
+    nread = uv_fs_read(loop, &read_req, pipe_fds[0], &iov, 1, -1, NULL);
 
-  ASSERT_EQ(nread, sizeof(test_buf));
-  ASSERT_OK(strcmp(buf, test_buf));
+    ASSERT_EQ(nread, sizeof(test_buf));
+    ASSERT_OK(strcmp(buf, test_buf));
 
-  ASSERT_OK(uv_run(loop, UV_RUN_DEFAULT));
+    ASSERT_OK(uv_run(loop, UV_RUN_DEFAULT));
 
-  ASSERT_OK(close(pipe_fds[0]));
-  ASSERT_OK(close(pipe_fds[1]));
-  uv_close((uv_handle_t*) &signal, NULL);
+    ASSERT_OK(close(pipe_fds[0]));
+    ASSERT_OK(close(pipe_fds[1]));
+    uv_close((uv_handle_t*)&signal, NULL);
 
-  ASSERT_OK(uv_thread_join(&thread));
+    ASSERT_OK(uv_thread_join(&thread));
 
-  MAKE_VALGRIND_HAPPY(loop);
-  return 0;
+    MAKE_VALGRIND_HAPPY(loop);
+    return 0;
 }
 
-#endif  /* !_WIN32 */
+#endif /* !_WIN32 */

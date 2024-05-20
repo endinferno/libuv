@@ -19,8 +19,8 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,48 +30,51 @@ static int seen_timer_handle;
 static uv_timer_t timer;
 
 
-static void walk_cb(uv_handle_t* handle, void* arg) {
-  ASSERT_PTR_EQ(arg, (void*)magic_cookie);
+static void walk_cb(uv_handle_t* handle, void* arg)
+{
+    ASSERT_PTR_EQ(arg, (void*)magic_cookie);
 
-  if (handle == (uv_handle_t*)&timer) {
-    seen_timer_handle++;
-  } else {
-    ASSERT(0 && "unexpected handle");
-  }
+    if (handle == (uv_handle_t*)&timer) {
+        seen_timer_handle++;
+    } else {
+        ASSERT(0 && "unexpected handle");
+    }
 }
 
 
-static void timer_cb(uv_timer_t* handle) {
-  ASSERT_PTR_EQ(handle, &timer);
+static void timer_cb(uv_timer_t* handle)
+{
+    ASSERT_PTR_EQ(handle, &timer);
 
-  uv_walk(handle->loop, walk_cb, magic_cookie);
-  uv_close((uv_handle_t*)handle, NULL);
+    uv_walk(handle->loop, walk_cb, magic_cookie);
+    uv_close((uv_handle_t*)handle, NULL);
 }
 
 
-TEST_IMPL(walk_handles) {
-  uv_loop_t* loop;
-  int r;
+TEST_IMPL(walk_handles)
+{
+    uv_loop_t* loop;
+    int r;
 
-  loop = uv_default_loop();
+    loop = uv_default_loop();
 
-  r = uv_timer_init(loop, &timer);
-  ASSERT_OK(r);
+    r = uv_timer_init(loop, &timer);
+    ASSERT_OK(r);
 
-  r = uv_timer_start(&timer, timer_cb, 1, 0);
-  ASSERT_OK(r);
+    r = uv_timer_start(&timer, timer_cb, 1, 0);
+    ASSERT_OK(r);
 
-  /* Start event loop, expect to see the timer handle in walk_cb. */
-  ASSERT_OK(seen_timer_handle);
-  r = uv_run(loop, UV_RUN_DEFAULT);
-  ASSERT_OK(r);
-  ASSERT_EQ(1, seen_timer_handle);
+    /* Start event loop, expect to see the timer handle in walk_cb. */
+    ASSERT_OK(seen_timer_handle);
+    r = uv_run(loop, UV_RUN_DEFAULT);
+    ASSERT_OK(r);
+    ASSERT_EQ(1, seen_timer_handle);
 
-  /* Loop is finished, walk_cb should not see our timer handle. */
-  seen_timer_handle = 0;
-  uv_walk(loop, walk_cb, magic_cookie);
-  ASSERT_OK(seen_timer_handle);
+    /* Loop is finished, walk_cb should not see our timer handle. */
+    seen_timer_handle = 0;
+    uv_walk(loop, walk_cb, magic_cookie);
+    ASSERT_OK(seen_timer_handle);
 
-  MAKE_VALGRIND_HAPPY(loop);
-  return 0;
+    MAKE_VALGRIND_HAPPY(loop);
+    return 0;
 }

@@ -21,22 +21,24 @@
 
 #include "task.h"
 
-int test_macros_evil(void) {
-  static int x;
-  return x++;
+int test_macros_evil(void)
+{
+    static int x;
+    return x++;
 }
 
 
-TEST_IMPL(test_macros) {
-  char* a = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  char* b = "ABCDEFGHIJKLMNOPQRSTUVWXYz";
-  char* c = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  int i;
+TEST_IMPL(test_macros)
+{
+    char* a = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    char* b = "ABCDEFGHIJKLMNOPQRSTUVWXYz";
+    char* c = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    int i;
 
-  i = test_macros_evil();
-  ASSERT_STR_NE(a, b);
-  ASSERT_STR_EQ(a, c);
-  ASSERT_EQ(i + 1, test_macros_evil());
-  ASSERT_EQ(i + 2, test_macros_evil());
-  return 0;
+    i = test_macros_evil();
+    ASSERT_STR_NE(a, b);
+    ASSERT_STR_EQ(a, c);
+    ASSERT_EQ(i + 1, test_macros_evil());
+    ASSERT_EQ(i + 2, test_macros_evil());
+    return 0;
 }

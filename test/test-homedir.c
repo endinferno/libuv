@@ -19,54 +19,55 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 #include <string.h>
 
 #define PATHMAX 4096
 #define SMALLPATH 1
 
-TEST_IMPL(homedir) {
-  char homedir[PATHMAX];
-  size_t len;
-  int r;
+TEST_IMPL(homedir)
+{
+    char homedir[PATHMAX];
+    size_t len;
+    int r;
 
-  /* Test the normal case */
-  len = sizeof homedir;
-  homedir[0] = '\0';
-  ASSERT_OK(strlen(homedir));
-  r = uv_os_homedir(homedir, &len);
-  ASSERT_OK(r);
-  ASSERT_EQ(strlen(homedir), len);
-  ASSERT_GT(len, 0);
-  ASSERT_EQ(homedir[len], '\0');
+    /* Test the normal case */
+    len = sizeof homedir;
+    homedir[0] = '\0';
+    ASSERT_OK(strlen(homedir));
+    r = uv_os_homedir(homedir, &len);
+    ASSERT_OK(r);
+    ASSERT_EQ(strlen(homedir), len);
+    ASSERT_GT(len, 0);
+    ASSERT_EQ(homedir[len], '\0');
 
 #ifdef _WIN32
-  if (len == 3 && homedir[1] == ':')
-    ASSERT_EQ(homedir[2], '\\');
-  else
-    ASSERT_NE(homedir[len - 1], '\\');
+    if (len == 3 && homedir[1] == ':')
+        ASSERT_EQ(homedir[2], '\\');
+    else
+        ASSERT_NE(homedir[len - 1], '\\');
 #else
-  if (len == 1)
-    ASSERT_EQ(homedir[0], '/');
-  else
-    ASSERT_NE(homedir[len - 1], '/');
+    if (len == 1)
+        ASSERT_EQ(homedir[0], '/');
+    else
+        ASSERT_NE(homedir[len - 1], '/');
 #endif
 
-  /* Test the case where the buffer is too small */
-  len = SMALLPATH;
-  r = uv_os_homedir(homedir, &len);
-  ASSERT_EQ(r, UV_ENOBUFS);
-  ASSERT_GT(len, SMALLPATH);
+    /* Test the case where the buffer is too small */
+    len = SMALLPATH;
+    r = uv_os_homedir(homedir, &len);
+    ASSERT_EQ(r, UV_ENOBUFS);
+    ASSERT_GT(len, SMALLPATH);
 
-  /* Test invalid inputs */
-  r = uv_os_homedir(NULL, &len);
-  ASSERT_EQ(r, UV_EINVAL);
-  r = uv_os_homedir(homedir, NULL);
-  ASSERT_EQ(r, UV_EINVAL);
-  len = 0;
-  r = uv_os_homedir(homedir, &len);
-  ASSERT_EQ(r, UV_EINVAL);
+    /* Test invalid inputs */
+    r = uv_os_homedir(NULL, &len);
+    ASSERT_EQ(r, UV_EINVAL);
+    r = uv_os_homedir(homedir, NULL);
+    ASSERT_EQ(r, UV_EINVAL);
+    len = 0;
+    r = uv_os_homedir(homedir, &len);
+    ASSERT_EQ(r, UV_EINVAL);
 
-  return 0;
+    return 0;
 }

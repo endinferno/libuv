@@ -19,93 +19,98 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct {
-  uv_mutex_t mutex;
-  uv_sem_t sem;
-  int delay;
-  volatile int posted;
+typedef struct
+{
+    uv_mutex_t mutex;
+    uv_sem_t sem;
+    int delay;
+    volatile int posted;
 } worker_config;
 
 
-static void worker(void* arg) {
-  worker_config* c = arg;
+static void worker(void* arg)
+{
+    worker_config* c = arg;
 
-  if (c->delay)
-    uv_sleep(c->delay);
+    if (c->delay)
+        uv_sleep(c->delay);
 
-  uv_mutex_lock(&c->mutex);
-  ASSERT_OK(c->posted);
-  uv_sem_post(&c->sem);
-  c->posted = 1;
-  uv_mutex_unlock(&c->mutex);
+    uv_mutex_lock(&c->mutex);
+    ASSERT_OK(c->posted);
+    uv_sem_post(&c->sem);
+    c->posted = 1;
+    uv_mutex_unlock(&c->mutex);
 }
 
 
-TEST_IMPL(semaphore_1) {
-  uv_thread_t thread;
-  worker_config wc;
+TEST_IMPL(semaphore_1)
+{
+    uv_thread_t thread;
+    worker_config wc;
 
-  memset(&wc, 0, sizeof(wc));
+    memset(&wc, 0, sizeof(wc));
 
-  ASSERT_OK(uv_sem_init(&wc.sem, 0));
-  ASSERT_OK(uv_mutex_init(&wc.mutex));
-  ASSERT_OK(uv_thread_create(&thread, worker, &wc));
+    ASSERT_OK(uv_sem_init(&wc.sem, 0));
+    ASSERT_OK(uv_mutex_init(&wc.mutex));
+    ASSERT_OK(uv_thread_create(&thread, worker, &wc));
 
-  uv_sleep(100);
-  uv_mutex_lock(&wc.mutex);
-  ASSERT_EQ(1, wc.posted);
-  uv_sem_wait(&wc.sem); /* should not block */
-  uv_mutex_unlock(&wc.mutex); /* ergo, it should be ok to unlock after wait */
+    uv_sleep(100);
+    uv_mutex_lock(&wc.mutex);
+    ASSERT_EQ(1, wc.posted);
+    uv_sem_wait(&wc.sem);       /* should not block */
+    uv_mutex_unlock(&wc.mutex); /* ergo, it should be ok to unlock after wait */
 
-  ASSERT_OK(uv_thread_join(&thread));
-  uv_mutex_destroy(&wc.mutex);
-  uv_sem_destroy(&wc.sem);
+    ASSERT_OK(uv_thread_join(&thread));
+    uv_mutex_destroy(&wc.mutex);
+    uv_sem_destroy(&wc.sem);
 
-  return 0;
+    return 0;
 }
 
 
-TEST_IMPL(semaphore_2) {
-  uv_thread_t thread;
-  worker_config wc;
+TEST_IMPL(semaphore_2)
+{
+    uv_thread_t thread;
+    worker_config wc;
 
-  memset(&wc, 0, sizeof(wc));
-  wc.delay = 100;
+    memset(&wc, 0, sizeof(wc));
+    wc.delay = 100;
 
-  ASSERT_OK(uv_sem_init(&wc.sem, 0));
-  ASSERT_OK(uv_mutex_init(&wc.mutex));
-  ASSERT_OK(uv_thread_create(&thread, worker, &wc));
+    ASSERT_OK(uv_sem_init(&wc.sem, 0));
+    ASSERT_OK(uv_mutex_init(&wc.mutex));
+    ASSERT_OK(uv_thread_create(&thread, worker, &wc));
 
-  uv_sem_wait(&wc.sem);
+    uv_sem_wait(&wc.sem);
 
-  ASSERT_OK(uv_thread_join(&thread));
-  uv_mutex_destroy(&wc.mutex);
-  uv_sem_destroy(&wc.sem);
+    ASSERT_OK(uv_thread_join(&thread));
+    uv_mutex_destroy(&wc.mutex);
+    uv_sem_destroy(&wc.sem);
 
-  return 0;
+    return 0;
 }
 
 
-TEST_IMPL(semaphore_3) {
-  uv_sem_t sem;
+TEST_IMPL(semaphore_3)
+{
+    uv_sem_t sem;
 
-  ASSERT_OK(uv_sem_init(&sem, 3));
-  uv_sem_wait(&sem); /* should not block */
-  uv_sem_wait(&sem); /* should not block */
-  ASSERT_OK(uv_sem_trywait(&sem));
-  ASSERT_EQ(UV_EAGAIN, uv_sem_trywait(&sem));
+    ASSERT_OK(uv_sem_init(&sem, 3));
+    uv_sem_wait(&sem); /* should not block */
+    uv_sem_wait(&sem); /* should not block */
+    ASSERT_OK(uv_sem_trywait(&sem));
+    ASSERT_EQ(UV_EAGAIN, uv_sem_trywait(&sem));
 
-  uv_sem_post(&sem);
-  ASSERT_OK(uv_sem_trywait(&sem));
-  ASSERT_EQ(UV_EAGAIN, uv_sem_trywait(&sem));
+    uv_sem_post(&sem);
+    ASSERT_OK(uv_sem_trywait(&sem));
+    ASSERT_EQ(UV_EAGAIN, uv_sem_trywait(&sem));
 
-  uv_sem_destroy(&sem);
+    uv_sem_destroy(&sem);
 
-  return 0;
+    return 0;
 }

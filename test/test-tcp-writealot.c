@@ -19,21 +19,22 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 #include <stdio.h>
 #include <stdlib.h>
 
 
-#define WRITES            3
-#if defined(__arm__) /* Decrease the chunks so the test passes on arm CI bots */
-#define CHUNKS_PER_WRITE  2048
+#define WRITES 3
+#if defined(__arm__) /* Decrease the chunks so the test passes on arm CI bots \
+                      */
+#    define CHUNKS_PER_WRITE 2048
 #else
-#define CHUNKS_PER_WRITE  4096
+#    define CHUNKS_PER_WRITE 4096
 #endif
-#define CHUNK_SIZE        10024 /* 10 kb */
+#define CHUNK_SIZE 10024 /* 10 kb */
 
-#define TOTAL_BYTES       (WRITES * CHUNKS_PER_WRITE * CHUNK_SIZE)
+#define TOTAL_BYTES (WRITES * CHUNKS_PER_WRITE * CHUNK_SIZE)
 
 static char* send_buffer;
 
@@ -50,136 +51,140 @@ static uv_shutdown_t shutdown_req;
 static uv_write_t write_reqs[WRITES];
 
 
-static void alloc_cb(uv_handle_t* handle, size_t size, uv_buf_t* buf) {
-  buf->base = malloc(size);
-  buf->len = size;
+static void alloc_cb(uv_handle_t* handle, size_t size, uv_buf_t* buf)
+{
+    buf->base = malloc(size);
+    buf->len = size;
 }
 
 
-static void close_cb(uv_handle_t* handle) {
-  ASSERT_NOT_NULL(handle);
-  close_cb_called++;
+static void close_cb(uv_handle_t* handle)
+{
+    ASSERT_NOT_NULL(handle);
+    close_cb_called++;
 }
 
 
-static void shutdown_cb(uv_shutdown_t* req, int status) {
-  uv_tcp_t* tcp;
+static void shutdown_cb(uv_shutdown_t* req, int status)
+{
+    uv_tcp_t* tcp;
 
-  ASSERT_PTR_EQ(req, &shutdown_req);
-  ASSERT_OK(status);
+    ASSERT_PTR_EQ(req, &shutdown_req);
+    ASSERT_OK(status);
 
-  tcp = (uv_tcp_t*)(req->handle);
+    tcp = (uv_tcp_t*)(req->handle);
 
-  /* The write buffer should be empty by now. */
-  ASSERT_OK(tcp->write_queue_size);
+    /* The write buffer should be empty by now. */
+    ASSERT_OK(tcp->write_queue_size);
 
-  /* Now we wait for the EOF */
-  shutdown_cb_called++;
+    /* Now we wait for the EOF */
+    shutdown_cb_called++;
 
-  /* We should have had all the writes called already. */
-  ASSERT_EQ(write_cb_called, WRITES);
+    /* We should have had all the writes called already. */
+    ASSERT_EQ(write_cb_called, WRITES);
 }
 
 
-static void read_cb(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
-  ASSERT_NOT_NULL(tcp);
+static void read_cb(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf)
+{
+    ASSERT_NOT_NULL(tcp);
 
-  if (nread >= 0) {
-    bytes_received_done += nread;
-  }
-  else {
-    ASSERT_EQ(nread, UV_EOF);
-    printf("GOT EOF\n");
-    uv_close((uv_handle_t*)tcp, close_cb);
-  }
-
-  free(buf->base);
-}
-
-
-static void write_cb(uv_write_t* req, int status) {
-  ASSERT_NOT_NULL(req);
-
-  if (status) {
-    fprintf(stderr, "uv_write error: %s\n", uv_strerror(status));
-    ASSERT(0);
-  }
-
-  bytes_sent_done += CHUNKS_PER_WRITE * CHUNK_SIZE;
-  write_cb_called++;
-}
-
-
-static void connect_cb(uv_connect_t* req, int status) {
-  uv_buf_t send_bufs[CHUNKS_PER_WRITE];
-  uv_stream_t* stream;
-  int i, j, r;
-
-  ASSERT_PTR_EQ(req, &connect_req);
-  ASSERT_OK(status);
-
-  stream = req->handle;
-  connect_cb_called++;
-
-  /* Write a lot of data */
-  for (i = 0; i < WRITES; i++) {
-    uv_write_t* write_req = write_reqs + i;
-
-    for (j = 0; j < CHUNKS_PER_WRITE; j++) {
-      send_bufs[j] = uv_buf_init(send_buffer + bytes_sent, CHUNK_SIZE);
-      bytes_sent += CHUNK_SIZE;
+    if (nread >= 0) {
+        bytes_received_done += nread;
+    } else {
+        ASSERT_EQ(nread, UV_EOF);
+        printf("GOT EOF\n");
+        uv_close((uv_handle_t*)tcp, close_cb);
     }
 
-    r = uv_write(write_req, stream, send_bufs, CHUNKS_PER_WRITE, write_cb);
-    ASSERT_OK(r);
-  }
-
-  /* Shutdown on drain. */
-  r = uv_shutdown(&shutdown_req, stream, shutdown_cb);
-  ASSERT_OK(r);
-
-  /* Start reading */
-  r = uv_read_start(stream, alloc_cb, read_cb);
-  ASSERT_OK(r);
+    free(buf->base);
 }
 
 
-TEST_IMPL(tcp_writealot) {
-  struct sockaddr_in addr;
-  uv_tcp_t client;
-  int r;
+static void write_cb(uv_write_t* req, int status)
+{
+    ASSERT_NOT_NULL(req);
+
+    if (status) {
+        fprintf(stderr, "uv_write error: %s\n", uv_strerror(status));
+        ASSERT(0);
+    }
+
+    bytes_sent_done += CHUNKS_PER_WRITE * CHUNK_SIZE;
+    write_cb_called++;
+}
+
+
+static void connect_cb(uv_connect_t* req, int status)
+{
+    uv_buf_t send_bufs[CHUNKS_PER_WRITE];
+    uv_stream_t* stream;
+    int i, j, r;
+
+    ASSERT_PTR_EQ(req, &connect_req);
+    ASSERT_OK(status);
+
+    stream = req->handle;
+    connect_cb_called++;
+
+    /* Write a lot of data */
+    for (i = 0; i < WRITES; i++) {
+        uv_write_t* write_req = write_reqs + i;
+
+        for (j = 0; j < CHUNKS_PER_WRITE; j++) {
+            send_bufs[j] = uv_buf_init(send_buffer + bytes_sent, CHUNK_SIZE);
+            bytes_sent += CHUNK_SIZE;
+        }
+
+        r = uv_write(write_req, stream, send_bufs, CHUNKS_PER_WRITE, write_cb);
+        ASSERT_OK(r);
+    }
+
+    /* Shutdown on drain. */
+    r = uv_shutdown(&shutdown_req, stream, shutdown_cb);
+    ASSERT_OK(r);
+
+    /* Start reading */
+    r = uv_read_start(stream, alloc_cb, read_cb);
+    ASSERT_OK(r);
+}
+
+
+TEST_IMPL(tcp_writealot)
+{
+    struct sockaddr_in addr;
+    uv_tcp_t client;
+    int r;
 
 #if defined(__MSAN__) || defined(__TSAN__)
-  RETURN_SKIP("Test is too slow to run under "
-              "MemorySanitizer or ThreadSanitizer");
+    RETURN_SKIP("Test is too slow to run under "
+                "MemorySanitizer or ThreadSanitizer");
 #endif
 
-  ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+    ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
 
-  send_buffer = calloc(1, TOTAL_BYTES);
-  ASSERT_NOT_NULL(send_buffer);
+    send_buffer = calloc(1, TOTAL_BYTES);
+    ASSERT_NOT_NULL(send_buffer);
 
-  r = uv_tcp_init(uv_default_loop(), &client);
-  ASSERT_OK(r);
+    r = uv_tcp_init(uv_default_loop(), &client);
+    ASSERT_OK(r);
 
-  r = uv_tcp_connect(&connect_req,
-                     &client,
-                     (const struct sockaddr*) &addr,
-                     connect_cb);
-  ASSERT_OK(r);
+    r = uv_tcp_connect(
+        &connect_req, &client, (const struct sockaddr*)&addr, connect_cb);
+    ASSERT_OK(r);
 
-  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+    uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  ASSERT_EQ(1, shutdown_cb_called);
-  ASSERT_EQ(1, connect_cb_called);
-  ASSERT_EQ(write_cb_called, WRITES);
-  ASSERT_EQ(1, close_cb_called);
-  ASSERT_EQ(bytes_sent, TOTAL_BYTES);
-  ASSERT_EQ(bytes_sent_done, TOTAL_BYTES);
-  ASSERT_EQ(bytes_received_done, TOTAL_BYTES);
+    ASSERT_EQ(1, shutdown_cb_called);
+    ASSERT_EQ(1, connect_cb_called);
+    ASSERT_EQ(write_cb_called, WRITES);
+    ASSERT_EQ(1, close_cb_called);
+    ASSERT_EQ(bytes_sent, TOTAL_BYTES);
+    ASSERT_EQ(bytes_sent_done, TOTAL_BYTES);
+    ASSERT_EQ(bytes_received_done, TOTAL_BYTES);
 
-  free(send_buffer);
+    free(send_buffer);
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
-  return 0;
+    MAKE_VALGRIND_HAPPY(uv_default_loop());
+    return 0;
 }

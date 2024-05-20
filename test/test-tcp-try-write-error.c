@@ -19,8 +19,8 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,76 +34,80 @@ static int close_cb_called;
 static int connection_cb_called;
 
 
-static void close_cb(uv_handle_t* handle) {
-  close_cb_called++;
+static void close_cb(uv_handle_t* handle)
+{
+    close_cb_called++;
 }
 
-static void incoming_close_cb(uv_handle_t* handle) {
-  uv_buf_t buf;
-  int r = 1;
+static void incoming_close_cb(uv_handle_t* handle)
+{
+    uv_buf_t buf;
+    int r = 1;
 
-  close_cb_called++;
+    close_cb_called++;
 
-  buf = uv_buf_init("meow", 4);
-  while (r > 0)
-    r = uv_try_write((uv_stream_t*) &client, &buf, 1);
-  fprintf(stderr, "uv_try_write error: %d %s\n", r, uv_strerror(r));
-  ASSERT(r == UV_EPIPE || r == UV_ECONNABORTED || r == UV_ECONNRESET);
-  ASSERT_OK(client.write_queue_size);
-}
-
-
-static void connect_cb(uv_connect_t* req, int status) {
-  ASSERT_OK(status);
-  connect_cb_called++;
+    buf = uv_buf_init("meow", 4);
+    while (r > 0)
+        r = uv_try_write((uv_stream_t*)&client, &buf, 1);
+    fprintf(stderr, "uv_try_write error: %d %s\n", r, uv_strerror(r));
+    ASSERT(r == UV_EPIPE || r == UV_ECONNABORTED || r == UV_ECONNRESET);
+    ASSERT_OK(client.write_queue_size);
 }
 
 
-static void connection_cb(uv_stream_t* tcp, int status) {
-  ASSERT_OK(status);
-
-  ASSERT_OK(uv_tcp_init(tcp->loop, &incoming));
-  ASSERT_OK(uv_accept(tcp, (uv_stream_t*) &incoming));
-
-  connection_cb_called++;
-  uv_close((uv_handle_t*) &incoming, incoming_close_cb);
-  uv_close((uv_handle_t*) tcp, close_cb);
+static void connect_cb(uv_connect_t* req, int status)
+{
+    ASSERT_OK(status);
+    connect_cb_called++;
 }
 
 
-static void start_server(void) {
-  struct sockaddr_in addr;
+static void connection_cb(uv_stream_t* tcp, int status)
+{
+    ASSERT_OK(status);
 
-  ASSERT_OK(uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
+    ASSERT_OK(uv_tcp_init(tcp->loop, &incoming));
+    ASSERT_OK(uv_accept(tcp, (uv_stream_t*)&incoming));
 
-  ASSERT_OK(uv_tcp_init(uv_default_loop(), &server));
-  ASSERT_OK(uv_tcp_bind(&server, (struct sockaddr*) &addr, 0));
-  ASSERT_OK(uv_listen((uv_stream_t*) &server, 128, connection_cb));
+    connection_cb_called++;
+    uv_close((uv_handle_t*)&incoming, incoming_close_cb);
+    uv_close((uv_handle_t*)tcp, close_cb);
 }
 
 
-TEST_IMPL(tcp_try_write_error) {
-  uv_connect_t connect_req;
-  struct sockaddr_in addr;
+static void start_server(void)
+{
+    struct sockaddr_in addr;
 
-  start_server();
+    ASSERT_OK(uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
 
-  ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+    ASSERT_OK(uv_tcp_init(uv_default_loop(), &server));
+    ASSERT_OK(uv_tcp_bind(&server, (struct sockaddr*)&addr, 0));
+    ASSERT_OK(uv_listen((uv_stream_t*)&server, 128, connection_cb));
+}
 
-  ASSERT_OK(uv_tcp_init(uv_default_loop(), &client));
-  ASSERT_OK(uv_tcp_connect(&connect_req,
-                           &client,
-                           (struct sockaddr*) &addr,
-                           connect_cb));
 
-  ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
-  uv_close((uv_handle_t*) &client, close_cb);
-  ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+TEST_IMPL(tcp_try_write_error)
+{
+    uv_connect_t connect_req;
+    struct sockaddr_in addr;
 
-  ASSERT_EQ(1, connect_cb_called);
-  ASSERT_EQ(3, close_cb_called);
-  ASSERT_EQ(1, connection_cb_called);
+    start_server();
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
-  return 0;
+    ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+
+    ASSERT_OK(uv_tcp_init(uv_default_loop(), &client));
+    ASSERT_OK(uv_tcp_connect(
+        &connect_req, &client, (struct sockaddr*)&addr, connect_cb));
+
+    ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+    uv_close((uv_handle_t*)&client, close_cb);
+    ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+
+    ASSERT_EQ(1, connect_cb_called);
+    ASSERT_EQ(3, close_cb_called);
+    ASSERT_EQ(1, connection_cb_called);
+
+    MAKE_VALGRIND_HAPPY(uv_default_loop());
+    return 0;
 }

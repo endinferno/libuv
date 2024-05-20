@@ -19,8 +19,8 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -30,44 +30,45 @@ static int close_cb_called = 0;
 
 
 
-static void connect_cb(uv_connect_t* handle, int status) {
-  ASSERT_NOT_NULL(handle);
-  connect_cb_called++;
+static void connect_cb(uv_connect_t* handle, int status)
+{
+    ASSERT_NOT_NULL(handle);
+    connect_cb_called++;
 }
 
 
 
-static void close_cb(uv_handle_t* handle) {
-  ASSERT_NOT_NULL(handle);
-  close_cb_called++;
+static void close_cb(uv_handle_t* handle)
+{
+    ASSERT_NOT_NULL(handle);
+    close_cb_called++;
 }
 
 
-TEST_IMPL(tcp_connect_error_fault) {
-  const char garbage[] =
-      "blah blah blah blah blah blah blah blah blah blah blah blah";
-  const struct sockaddr_in* garbage_addr;
-  uv_tcp_t server;
-  int r;
-  uv_connect_t req;
+TEST_IMPL(tcp_connect_error_fault)
+{
+    const char garbage[] =
+        "blah blah blah blah blah blah blah blah blah blah blah blah";
+    const struct sockaddr_in* garbage_addr;
+    uv_tcp_t server;
+    int r;
+    uv_connect_t req;
 
-  garbage_addr = (const struct sockaddr_in*) &garbage;
+    garbage_addr = (const struct sockaddr_in*)&garbage;
 
-  r = uv_tcp_init(uv_default_loop(), &server);
-  ASSERT_OK(r);
-  r = uv_tcp_connect(&req,
-                     &server,
-                     (const struct sockaddr*) garbage_addr,
-                     connect_cb);
-  ASSERT_EQ(r, UV_EINVAL);
+    r = uv_tcp_init(uv_default_loop(), &server);
+    ASSERT_OK(r);
+    r = uv_tcp_connect(
+        &req, &server, (const struct sockaddr*)garbage_addr, connect_cb);
+    ASSERT_EQ(r, UV_EINVAL);
 
-  uv_close((uv_handle_t*)&server, close_cb);
+    uv_close((uv_handle_t*)&server, close_cb);
 
-  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+    uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  ASSERT_OK(connect_cb_called);
-  ASSERT_EQ(1, close_cb_called);
+    ASSERT_OK(connect_cb_called);
+    ASSERT_EQ(1, close_cb_called);
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
-  return 0;
+    MAKE_VALGRIND_HAPPY(uv_default_loop());
+    return 0;
 }

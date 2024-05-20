@@ -29,44 +29,47 @@
 #include "benchmark-list.h"
 
 #ifdef __MVS__
-#include "zos-base.h"
+#    include "zos-base.h"
 /* Initialize environment and zoslib */
-__attribute__((constructor)) void init() {
-  zoslib_config_t config;
-  init_zoslib_config(&config);
-  init_zoslib(config);
+__attribute__((constructor)) void init()
+{
+    zoslib_config_t config;
+    init_zoslib_config(&config);
+    init_zoslib(config);
 }
 #endif
 
 
-static int maybe_run_test(int argc, char **argv);
+static int maybe_run_test(int argc, char** argv);
 
 
-int main(int argc, char **argv) {
-  platform_init(argc, argv);
+int main(int argc, char** argv)
+{
+    platform_init(argc, argv);
 
-  switch (argc) {
-  case 1: return run_tests(1);
-  case 2: return maybe_run_test(argc, argv);
-  case 3: return run_test_part(argv[1], argv[2]);
-  default:
-    fprintf(stderr, "Too many arguments.\n");
-    fflush(stderr);
-    return EXIT_FAILURE;
-  }
+    switch (argc) {
+    case 1: return run_tests(1);
+    case 2: return maybe_run_test(argc, argv);
+    case 3: return run_test_part(argv[1], argv[2]);
+    default:
+        fprintf(stderr, "Too many arguments.\n");
+        fflush(stderr);
+        return EXIT_FAILURE;
+    }
 }
 
 
-static int maybe_run_test(int argc, char **argv) {
-  if (strcmp(argv[1], "--list") == 0) {
-    print_tests(stdout);
-    return 0;
-  }
+static int maybe_run_test(int argc, char** argv)
+{
+    if (strcmp(argv[1], "--list") == 0) {
+        print_tests(stdout);
+        return 0;
+    }
 
-  if (strcmp(argv[1], "spawn_helper") == 0) {
-    printf("hello world\n");
-    return 42;
-  }
+    if (strcmp(argv[1], "spawn_helper") == 0) {
+        printf("hello world\n");
+        return 42;
+    }
 
-  return run_test(argv[1], 1, 1);
+    return run_test(argv[1], 1, 1);
 }

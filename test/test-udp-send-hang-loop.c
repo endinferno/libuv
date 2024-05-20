@@ -19,15 +19,15 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define CHECK_OBJECT(handle, type, parent) \
-  ASSERT_PTR_EQ((type*)(handle), &(parent))
+    ASSERT_PTR_EQ((type*)(handle), &(parent))
 
 static uv_udp_t client;
 static uv_idle_t idle_handle;
@@ -41,59 +41,58 @@ static int loop_hang_called;
 static void send_cb(uv_udp_send_t* req, int status);
 
 
-static void idle_cb(uv_idle_t* handle) {
-  int r;
+static void idle_cb(uv_idle_t* handle)
+{
+    int r;
 
-  ASSERT_NULL(send_req.handle);
-  CHECK_OBJECT(handle, uv_idle_t, idle_handle);
-  ASSERT_OK(uv_idle_stop(handle));
+    ASSERT_NULL(send_req.handle);
+    CHECK_OBJECT(handle, uv_idle_t, idle_handle);
+    ASSERT_OK(uv_idle_stop(handle));
 
-  /* It probably would have stalled by now if it's going to stall at all. */
-  if (++loop_hang_called > 1000) {
-    uv_close((uv_handle_t*) &client, NULL);
-    uv_close((uv_handle_t*) &idle_handle, NULL);
-    return;
-  }
+    /* It probably would have stalled by now if it's going to stall at all. */
+    if (++loop_hang_called > 1000) {
+        uv_close((uv_handle_t*)&client, NULL);
+        uv_close((uv_handle_t*)&idle_handle, NULL);
+        return;
+    }
 
-  r = uv_udp_send(&send_req,
-                  &client,
-                  &buf,
-                  1,
-                  (const struct sockaddr*) &addr,
-                  send_cb);
-  ASSERT_OK(r);
+    r = uv_udp_send(
+        &send_req, &client, &buf, 1, (const struct sockaddr*)&addr, send_cb);
+    ASSERT_OK(r);
 }
 
 
-static void send_cb(uv_udp_send_t* req, int status) {
-  ASSERT_NOT_NULL(req);
-  ASSERT(status == 0 || status == UV_ENETUNREACH);
-  CHECK_OBJECT(req->handle, uv_udp_t, client);
-  CHECK_OBJECT(req, uv_udp_send_t, send_req);
-  req->handle = NULL;
+static void send_cb(uv_udp_send_t* req, int status)
+{
+    ASSERT_NOT_NULL(req);
+    ASSERT(status == 0 || status == UV_ENETUNREACH);
+    CHECK_OBJECT(req->handle, uv_udp_t, client);
+    CHECK_OBJECT(req, uv_udp_send_t, send_req);
+    req->handle = NULL;
 
-  ASSERT_OK(uv_idle_start(&idle_handle, idle_cb));
+    ASSERT_OK(uv_idle_start(&idle_handle, idle_cb));
 }
 
 
-TEST_IMPL(udp_send_hang_loop) {
-  ASSERT_OK(uv_idle_init(uv_default_loop(), &idle_handle));
+TEST_IMPL(udp_send_hang_loop)
+{
+    ASSERT_OK(uv_idle_init(uv_default_loop(), &idle_handle));
 
-  /* 192.0.2.0/24 is "TEST-NET" and reserved for documentation.
-   * Good for us, though. Since we want to have something unreachable.
-   */
-  ASSERT_OK(uv_ip4_addr("192.0.2.3", TEST_PORT, &addr));
+    /* 192.0.2.0/24 is "TEST-NET" and reserved for documentation.
+     * Good for us, though. Since we want to have something unreachable.
+     */
+    ASSERT_OK(uv_ip4_addr("192.0.2.3", TEST_PORT, &addr));
 
-  ASSERT_OK(uv_udp_init(uv_default_loop(), &client));
+    ASSERT_OK(uv_udp_init(uv_default_loop(), &client));
 
-  buf = uv_buf_init(send_data, sizeof(send_data));
+    buf = uv_buf_init(send_data, sizeof(send_data));
 
-  ASSERT_OK(uv_idle_start(&idle_handle, idle_cb));
+    ASSERT_OK(uv_idle_start(&idle_handle, idle_cb));
 
-  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+    uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  ASSERT_GT(loop_hang_called, 1000);
+    ASSERT_GT(loop_hang_called, 1000);
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
-  return 0;
+    MAKE_VALGRIND_HAPPY(uv_default_loop());
+    return 0;
 }

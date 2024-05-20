@@ -19,59 +19,62 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 
 static uv_timer_t timer_handle;
 
-static void timer_cb(uv_timer_t* handle) {
-  ASSERT(handle);
-  uv_stop(handle->loop);
+static void timer_cb(uv_timer_t* handle)
+{
+    ASSERT(handle);
+    uv_stop(handle->loop);
 }
 
 
-TEST_IMPL(loop_close) {
-  int r;
-  uv_loop_t loop;
+TEST_IMPL(loop_close)
+{
+    int r;
+    uv_loop_t loop;
 
-  loop.data = &loop;
-  ASSERT_OK(uv_loop_init(&loop));
-  ASSERT_PTR_EQ(loop.data, (void*) &loop);
+    loop.data = &loop;
+    ASSERT_OK(uv_loop_init(&loop));
+    ASSERT_PTR_EQ(loop.data, (void*)&loop);
 
-  uv_timer_init(&loop, &timer_handle);
-  uv_timer_start(&timer_handle, timer_cb, 100, 100);
+    uv_timer_init(&loop, &timer_handle);
+    uv_timer_start(&timer_handle, timer_cb, 100, 100);
 
-  ASSERT_EQ(UV_EBUSY, uv_loop_close(&loop));
+    ASSERT_EQ(UV_EBUSY, uv_loop_close(&loop));
 
-  uv_run(&loop, UV_RUN_DEFAULT);
+    uv_run(&loop, UV_RUN_DEFAULT);
 
-  uv_close((uv_handle_t*) &timer_handle, NULL);
-  r = uv_run(&loop, UV_RUN_DEFAULT);
-  ASSERT_OK(r);
+    uv_close((uv_handle_t*)&timer_handle, NULL);
+    r = uv_run(&loop, UV_RUN_DEFAULT);
+    ASSERT_OK(r);
 
-  ASSERT_PTR_EQ(loop.data, (void*) &loop);
-  ASSERT_OK(uv_loop_close(&loop));
-  ASSERT_PTR_EQ(loop.data, (void*) &loop);
+    ASSERT_PTR_EQ(loop.data, (void*)&loop);
+    ASSERT_OK(uv_loop_close(&loop));
+    ASSERT_PTR_EQ(loop.data, (void*)&loop);
 
-  return 0;
+    return 0;
 }
 
-static void loop_instant_close_work_cb(uv_work_t* req) {
-}
+static void loop_instant_close_work_cb(uv_work_t* req)
+{}
 
-static void loop_instant_close_after_work_cb(uv_work_t* req, int status) {
-}
+static void loop_instant_close_after_work_cb(uv_work_t* req, int status)
+{}
 
 /* It's impossible to properly cleanup after this test because loop can't be
  * closed while work has been queued. */
-TEST_IMPL(loop_instant_close) {
-  static uv_loop_t loop;
-  static uv_work_t req;
-  ASSERT_OK(uv_loop_init(&loop));
-  ASSERT_OK(uv_queue_work(&loop,
-                          &req,
-                          loop_instant_close_work_cb,
-                          loop_instant_close_after_work_cb));
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
-  return 0;
+TEST_IMPL(loop_instant_close)
+{
+    static uv_loop_t loop;
+    static uv_work_t req;
+    ASSERT_OK(uv_loop_init(&loop));
+    ASSERT_OK(uv_queue_work(&loop,
+                            &req,
+                            loop_instant_close_work_cb,
+                            loop_instant_close_after_work_cb));
+    MAKE_VALGRIND_HAPPY(uv_default_loop());
+    return 0;
 }

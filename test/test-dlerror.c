@@ -19,47 +19,48 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 #include <string.h>
 
 
-TEST_IMPL(dlerror) {
-  const char* path = "test/fixtures/load_error.node";
-  const char* dlerror_no_error = "no error";
-  const char* msg;
-  uv_lib_t lib;
-  int r;
+TEST_IMPL(dlerror)
+{
+    const char* path = "test/fixtures/load_error.node";
+    const char* dlerror_no_error = "no error";
+    const char* msg;
+    uv_lib_t lib;
+    int r;
 
-  lib.errmsg = NULL;
-  lib.handle = NULL;
-  msg = uv_dlerror(&lib);
-  ASSERT_NOT_NULL(msg);
-  ASSERT_NOT_NULL(strstr(msg, dlerror_no_error));
+    lib.errmsg = NULL;
+    lib.handle = NULL;
+    msg = uv_dlerror(&lib);
+    ASSERT_NOT_NULL(msg);
+    ASSERT_NOT_NULL(strstr(msg, dlerror_no_error));
 
-  r = uv_dlopen(path, &lib);
-  ASSERT_EQ(r, -1);
+    r = uv_dlopen(path, &lib);
+    ASSERT_EQ(r, -1);
 
-  msg = uv_dlerror(&lib);
-  ASSERT_NOT_NULL(msg);
+    msg = uv_dlerror(&lib);
+    ASSERT_NOT_NULL(msg);
 #if !defined(__OpenBSD__) && !defined(__QNX__)
-  /* musl's libc.a does not support dlopen(), only libc.so does. */
-  if (NULL == strstr(msg, "Dynamic loading not supported"))
-    ASSERT_NOT_NULL(strstr(msg, path));
+    /* musl's libc.a does not support dlopen(), only libc.so does. */
+    if (NULL == strstr(msg, "Dynamic loading not supported"))
+        ASSERT_NOT_NULL(strstr(msg, path));
 #endif
-  ASSERT_NULL(strstr(msg, dlerror_no_error));
+    ASSERT_NULL(strstr(msg, dlerror_no_error));
 
-  /* Should return the same error twice in a row. */
-  msg = uv_dlerror(&lib);
-  ASSERT_NOT_NULL(msg);
+    /* Should return the same error twice in a row. */
+    msg = uv_dlerror(&lib);
+    ASSERT_NOT_NULL(msg);
 #if !defined(__OpenBSD__) && !defined(__QNX__)
-  /* musl's libc.a does not support dlopen(), only libc.so does. */
-  if (NULL == strstr(msg, "Dynamic loading not supported"))
-    ASSERT_NOT_NULL(strstr(msg, path));
+    /* musl's libc.a does not support dlopen(), only libc.so does. */
+    if (NULL == strstr(msg, "Dynamic loading not supported"))
+        ASSERT_NOT_NULL(strstr(msg, path));
 #endif
-  ASSERT_NULL(strstr(msg, dlerror_no_error));
+    ASSERT_NULL(strstr(msg, dlerror_no_error));
 
-  uv_dlclose(&lib);
+    uv_dlclose(&lib);
 
-  return 0;
+    return 0;
 }

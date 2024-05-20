@@ -19,20 +19,22 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 
 #include <stdio.h>
 #include <string.h>
 
-union TestAddr {
+union TestAddr
+{
     struct sockaddr addr;
     struct sockaddr_in addr4;
     struct sockaddr_in6 addr6;
 };
 
 
-TEST_IMPL(ip_name) {
+TEST_IMPL(ip_name)
+{
     char dst[INET6_ADDRSTRLEN];
     union TestAddr test_addr;
     struct sockaddr* addr = &test_addr.addr;

@@ -19,8 +19,8 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -35,70 +35,75 @@ static int called_shutdown_cb;
 static int called_tcp_close_cb;
 
 
-static void alloc_cb(uv_handle_t* handle, size_t size, uv_buf_t* buf) {
-  buf->base = malloc(size);
-  buf->len = size;
+static void alloc_cb(uv_handle_t* handle, size_t size, uv_buf_t* buf)
+{
+    buf->base = malloc(size);
+    buf->len = size;
 }
 
 
-static void shutdown_cb(uv_shutdown_t *req, int status) {
-  ASSERT_PTR_EQ(req, &shutdown_req);
+static void shutdown_cb(uv_shutdown_t* req, int status)
+{
+    ASSERT_PTR_EQ(req, &shutdown_req);
 
-  ASSERT_EQ(1, called_connect_cb);
-  ASSERT_OK(called_tcp_close_cb);
+    ASSERT_EQ(1, called_connect_cb);
+    ASSERT_OK(called_tcp_close_cb);
 }
 
 
-static void read_cb(uv_stream_t* t, ssize_t nread, const uv_buf_t* buf) {
-  ASSERT_PTR_EQ((uv_tcp_t*)t, &tcp);
+static void read_cb(uv_stream_t* t, ssize_t nread, const uv_buf_t* buf)
+{
+    ASSERT_PTR_EQ((uv_tcp_t*)t, &tcp);
 
-  if (nread == 0) {
-    free(buf->base);
-    return;
-  }
-
-  if (!got_q) {
-    ASSERT_EQ(4, nread);
-    ASSERT_OK(got_eof);
-    ASSERT_MEM_EQ(buf->base, "QQSS", 4);
-    free(buf->base);
-    got_q = 1;
-    puts("got QQSS");
-    /* Shutdown our end of the connection simultaneously */
-    uv_shutdown(&shutdown_req, (uv_stream_t*) &tcp, shutdown_cb);
-    called_shutdown_cb++;
-  } else {
-    ASSERT_EQ(nread, UV_EOF);
-    if (buf->base) {
-      free(buf->base);
+    if (nread == 0) {
+        free(buf->base);
+        return;
     }
-    got_eof = 1;
-    puts("got EOF");
-  }
+
+    if (!got_q) {
+        ASSERT_EQ(4, nread);
+        ASSERT_OK(got_eof);
+        ASSERT_MEM_EQ(buf->base, "QQSS", 4);
+        free(buf->base);
+        got_q = 1;
+        puts("got QQSS");
+        /* Shutdown our end of the connection simultaneously */
+        uv_shutdown(&shutdown_req, (uv_stream_t*)&tcp, shutdown_cb);
+        called_shutdown_cb++;
+    } else {
+        ASSERT_EQ(nread, UV_EOF);
+        if (buf->base) {
+            free(buf->base);
+        }
+        got_eof = 1;
+        puts("got EOF");
+    }
 }
 
 
-static void connect_cb(uv_connect_t *req, int status) {
-  ASSERT_OK(status);
-  ASSERT_PTR_EQ(req, &connect_req);
+static void connect_cb(uv_connect_t* req, int status)
+{
+    ASSERT_OK(status);
+    ASSERT_PTR_EQ(req, &connect_req);
 
-  /* Start reading from our connection so we can receive the EOF.  */
-  ASSERT_OK(uv_read_start((uv_stream_t*)&tcp, alloc_cb, read_cb));
+    /* Start reading from our connection so we can receive the EOF.  */
+    ASSERT_OK(uv_read_start((uv_stream_t*)&tcp, alloc_cb, read_cb));
 
-  /* Check error handling. */
-  ASSERT_EQ(UV_EALREADY, uv_read_start((uv_stream_t*)&tcp, alloc_cb, read_cb));
-  ASSERT_EQ(UV_EINVAL, uv_read_start(NULL, alloc_cb, read_cb));
-  ASSERT_EQ(UV_EINVAL, uv_read_start((uv_stream_t*)&tcp, NULL, read_cb));
-  ASSERT_EQ(UV_EINVAL, uv_read_start((uv_stream_t*)&tcp, alloc_cb, NULL));
+    /* Check error handling. */
+    ASSERT_EQ(UV_EALREADY,
+              uv_read_start((uv_stream_t*)&tcp, alloc_cb, read_cb));
+    ASSERT_EQ(UV_EINVAL, uv_read_start(NULL, alloc_cb, read_cb));
+    ASSERT_EQ(UV_EINVAL, uv_read_start((uv_stream_t*)&tcp, NULL, read_cb));
+    ASSERT_EQ(UV_EINVAL, uv_read_start((uv_stream_t*)&tcp, alloc_cb, NULL));
 
-  /*
-   * Write the letter 'Q' and 'QSS` to gracefully kill the echo-server. This
-   * will not effect our connection.
-   */
-  ASSERT_EQ(qbuf.len, uv_try_write((uv_stream_t*) &tcp, &qbuf, 1));
+    /*
+     * Write the letter 'Q' and 'QSS` to gracefully kill the echo-server. This
+     * will not effect our connection.
+     */
+    ASSERT_EQ(qbuf.len, uv_try_write((uv_stream_t*)&tcp, &qbuf, 1));
 
-  called_connect_cb++;
-  ASSERT_OK(called_shutdown_cb);
+    called_connect_cb++;
+    ASSERT_OK(called_shutdown_cb);
 }
 
 
@@ -106,30 +111,29 @@ static void connect_cb(uv_connect_t *req, int status) {
  * This test has a client which connects to the echo_server and immediately
  * issues a shutdown. We check that this does not cause libuv to hang.
  */
-TEST_IMPL(shutdown_simultaneous) {
-  struct sockaddr_in server_addr;
-  int r;
+TEST_IMPL(shutdown_simultaneous)
+{
+    struct sockaddr_in server_addr;
+    int r;
 
-  qbuf.base = "QQSS";
-  qbuf.len = 4;
+    qbuf.base = "QQSS";
+    qbuf.len = 4;
 
-  ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &server_addr));
-  r = uv_tcp_init(uv_default_loop(), &tcp);
-  ASSERT_OK(r);
+    ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &server_addr));
+    r = uv_tcp_init(uv_default_loop(), &tcp);
+    ASSERT_OK(r);
 
-  r = uv_tcp_connect(&connect_req,
-                     &tcp,
-                     (const struct sockaddr*) &server_addr,
-                     connect_cb);
-  ASSERT_OK(r);
+    r = uv_tcp_connect(
+        &connect_req, &tcp, (const struct sockaddr*)&server_addr, connect_cb);
+    ASSERT_OK(r);
 
-  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+    uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  ASSERT_EQ(1, called_connect_cb);
-  ASSERT_EQ(1, called_shutdown_cb);
-  ASSERT_EQ(1, got_eof);
-  ASSERT_EQ(1, got_q);
+    ASSERT_EQ(1, called_connect_cb);
+    ASSERT_EQ(1, called_shutdown_cb);
+    ASSERT_EQ(1, got_eof);
+    ASSERT_EQ(1, got_q);
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
-  return 0;
+    MAKE_VALGRIND_HAPPY(uv_default_loop());
+    return 0;
 }

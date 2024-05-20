@@ -24,62 +24,61 @@
  * leave a ghost request in the system)
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 
 static uv_shutdown_t req1;
 static uv_shutdown_t req2;
 
 static int shutdown_cb_called = 0;
 
-static void close_cb(uv_handle_t* handle) {
+static void close_cb(uv_handle_t* handle)
+{}
 
+static void shutdown_cb(uv_shutdown_t* req, int status)
+{
+    ASSERT_PTR_EQ(req, &req1);
+    ASSERT_OK(status);
+    shutdown_cb_called++;
+    uv_close((uv_handle_t*)req->handle, close_cb);
 }
 
-static void shutdown_cb(uv_shutdown_t* req, int status) {
-  ASSERT_PTR_EQ(req, &req1);
-  ASSERT_OK(status);
-  shutdown_cb_called++;
-  uv_close((uv_handle_t*) req->handle, close_cb);
+static void connect_cb(uv_connect_t* req, int status)
+{
+    int r;
+
+    ASSERT_OK(status);
+
+    r = uv_shutdown(&req1, req->handle, shutdown_cb);
+    ASSERT_OK(r);
+    r = uv_shutdown(&req2, req->handle, shutdown_cb);
+    ASSERT(r);
 }
 
-static void connect_cb(uv_connect_t* req, int status) {
-  int r;
+TEST_IMPL(shutdown_twice)
+{
+    struct sockaddr_in addr;
+    uv_loop_t* loop;
+    int r;
+    uv_tcp_t h;
 
-  ASSERT_OK(status);
+    uv_connect_t connect_req;
 
-  r = uv_shutdown(&req1, req->handle, shutdown_cb);
-  ASSERT_OK(r);
-  r = uv_shutdown(&req2, req->handle, shutdown_cb);
-  ASSERT(r);
+    ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+    loop = uv_default_loop();
 
-}
+    r = uv_tcp_init(loop, &h);
+    ASSERT_OK(r);
 
-TEST_IMPL(shutdown_twice) {
-  struct sockaddr_in addr;
-  uv_loop_t* loop;
-  int r;
-  uv_tcp_t h;
+    r = uv_tcp_connect(
+        &connect_req, &h, (const struct sockaddr*)&addr, connect_cb);
+    ASSERT_OK(r);
 
-  uv_connect_t connect_req;
+    r = uv_run(loop, UV_RUN_DEFAULT);
+    ASSERT_OK(r);
 
-  ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
-  loop = uv_default_loop();
+    ASSERT_EQ(1, shutdown_cb_called);
 
-  r = uv_tcp_init(loop, &h);
-  ASSERT_OK(r);
-
-  r = uv_tcp_connect(&connect_req,
-                     &h,
-                     (const struct sockaddr*) &addr,
-                     connect_cb);
-  ASSERT_OK(r);
-
-  r = uv_run(loop, UV_RUN_DEFAULT);
-  ASSERT_OK(r);
-
-  ASSERT_EQ(1, shutdown_cb_called);
-
-  MAKE_VALGRIND_HAPPY(loop);
-  return 0;
+    MAKE_VALGRIND_HAPPY(loop);
+    return 0;
 }

@@ -19,15 +19,16 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define CHECK_HANDLE(handle) \
-  ASSERT_NE((uv_udp_t*)(handle) == &server || (uv_udp_t*)(handle) == &client, 0)
+    ASSERT_NE(               \
+        (uv_udp_t*)(handle) == &server || (uv_udp_t*)(handle) == &client, 0)
 
 static uv_udp_t server;
 static uv_udp_t client;
@@ -36,59 +37,58 @@ static int sv_send_cb_called;
 static int close_cb_called;
 
 
-static void close_cb(uv_handle_t* handle) {
-  CHECK_HANDLE(handle);
-  close_cb_called++;
+static void close_cb(uv_handle_t* handle)
+{
+    CHECK_HANDLE(handle);
+    close_cb_called++;
 }
 
 
-static void sv_send_cb(uv_udp_send_t* req, int status) {
-  ASSERT_NOT_NULL(req);
-  ASSERT(status == 0 || status == UV_ENETUNREACH || status == UV_EPERM);
-  CHECK_HANDLE(req->handle);
+static void sv_send_cb(uv_udp_send_t* req, int status)
+{
+    ASSERT_NOT_NULL(req);
+    ASSERT(status == 0 || status == UV_ENETUNREACH || status == UV_EPERM);
+    CHECK_HANDLE(req->handle);
 
-  sv_send_cb_called++;
+    sv_send_cb_called++;
 
-  uv_close((uv_handle_t*) req->handle, close_cb);
+    uv_close((uv_handle_t*)req->handle, close_cb);
 }
 
 
-TEST_IMPL(udp_multicast_ttl) {
-  int r;
-  uv_udp_send_t req;
-  uv_buf_t buf;
-  struct sockaddr_in addr;
+TEST_IMPL(udp_multicast_ttl)
+{
+    int r;
+    uv_udp_send_t req;
+    uv_buf_t buf;
+    struct sockaddr_in addr;
 
-  r = uv_udp_init(uv_default_loop(), &server);
-  ASSERT_OK(r);
+    r = uv_udp_init(uv_default_loop(), &server);
+    ASSERT_OK(r);
 
-  ASSERT_OK(uv_ip4_addr("0.0.0.0", 0, &addr));
-  r = uv_udp_bind(&server, (const struct sockaddr*) &addr, 0);
-  ASSERT_OK(r);
+    ASSERT_OK(uv_ip4_addr("0.0.0.0", 0, &addr));
+    r = uv_udp_bind(&server, (const struct sockaddr*)&addr, 0);
+    ASSERT_OK(r);
 
-  r = uv_udp_set_multicast_ttl(&server, 32);
-  ASSERT_OK(r);
+    r = uv_udp_set_multicast_ttl(&server, 32);
+    ASSERT_OK(r);
 
-  /* server sends "PING" */
-  buf = uv_buf_init("PING", 4);
-  ASSERT_OK(uv_ip4_addr("239.255.0.1", TEST_PORT, &addr));
-  r = uv_udp_send(&req,
-                  &server,
-                  &buf,
-                  1,
-                  (const struct sockaddr*) &addr,
-                  sv_send_cb);
-  ASSERT_OK(r);
+    /* server sends "PING" */
+    buf = uv_buf_init("PING", 4);
+    ASSERT_OK(uv_ip4_addr("239.255.0.1", TEST_PORT, &addr));
+    r = uv_udp_send(
+        &req, &server, &buf, 1, (const struct sockaddr*)&addr, sv_send_cb);
+    ASSERT_OK(r);
 
-  ASSERT_OK(close_cb_called);
-  ASSERT_OK(sv_send_cb_called);
+    ASSERT_OK(close_cb_called);
+    ASSERT_OK(sv_send_cb_called);
 
-  /* run the loop till all events are processed */
-  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+    /* run the loop till all events are processed */
+    uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  ASSERT_EQ(1, sv_send_cb_called);
-  ASSERT_EQ(1, close_cb_called);
+    ASSERT_EQ(1, sv_send_cb_called);
+    ASSERT_EQ(1, close_cb_called);
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
-  return 0;
+    MAKE_VALGRIND_HAPPY(uv_default_loop());
+    return 0;
 }

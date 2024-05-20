@@ -19,8 +19,8 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 
 #define NUM_TICKS 64
 
@@ -28,21 +28,24 @@ static uv_idle_t idle_handle;
 static int idle_counter;
 
 
-static void idle_cb(uv_idle_t* handle) {
-  ASSERT_PTR_EQ(handle, &idle_handle);
+static void idle_cb(uv_idle_t* handle)
+{
+    ASSERT_PTR_EQ(handle, &idle_handle);
 
-  if (++idle_counter == NUM_TICKS)
-    uv_idle_stop(handle);
+    if (++idle_counter == NUM_TICKS)
+        uv_idle_stop(handle);
 }
 
 
-TEST_IMPL(run_once) {
-  uv_idle_init(uv_default_loop(), &idle_handle);
-  uv_idle_start(&idle_handle, idle_cb);
+TEST_IMPL(run_once)
+{
+    uv_idle_init(uv_default_loop(), &idle_handle);
+    uv_idle_start(&idle_handle, idle_cb);
 
-  while (uv_run(uv_default_loop(), UV_RUN_ONCE));
-  ASSERT_EQ(idle_counter, NUM_TICKS);
+    while (uv_run(uv_default_loop(), UV_RUN_ONCE))
+        ;
+    ASSERT_EQ(idle_counter, NUM_TICKS);
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
-  return 0;
+    MAKE_VALGRIND_HAPPY(uv_default_loop());
+    return 0;
 }

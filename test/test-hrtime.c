@@ -19,47 +19,49 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 
 #ifndef MILLISEC
-# define MILLISEC 1000
+#    define MILLISEC 1000
 #endif
 
 #ifndef NANOSEC
-# define NANOSEC ((uint64_t) 1e9)
+#    define NANOSEC ((uint64_t)1e9)
 #endif
 
 
-TEST_IMPL(hrtime) {
-  uint64_t a, b, diff;
-  int i = 75;
-  while (i > 0) {
-    a = uv_hrtime();
-    uv_sleep(45);
-    b = uv_hrtime();
+TEST_IMPL(hrtime)
+{
+    uint64_t a, b, diff;
+    int i = 75;
+    while (i > 0) {
+        a = uv_hrtime();
+        uv_sleep(45);
+        b = uv_hrtime();
 
-    diff = b - a;
+        diff = b - a;
 
-    /* The windows Sleep() function has only a resolution of 10-20 ms. Check
-     * that the difference between the two hrtime values has a reasonable
-     * lower bound.
-     */
-    ASSERT_UINT64_GT(diff, (uint64_t) 25 * NANOSEC / MILLISEC);
-    --i;
-  }
-  return 0;
+        /* The windows Sleep() function has only a resolution of 10-20 ms. Check
+         * that the difference between the two hrtime values has a reasonable
+         * lower bound.
+         */
+        ASSERT_UINT64_GT(diff, (uint64_t)25 * NANOSEC / MILLISEC);
+        --i;
+    }
+    return 0;
 }
 
 
-TEST_IMPL(clock_gettime) {
-  uv_timespec64_t t;
+TEST_IMPL(clock_gettime)
+{
+    uv_timespec64_t t;
 
-  ASSERT_EQ(UV_EINVAL, uv_clock_gettime(1337, &t));
-  ASSERT_EQ(UV_EFAULT, uv_clock_gettime(1337, NULL));
-  ASSERT_OK(uv_clock_gettime(UV_CLOCK_MONOTONIC, &t));
-  ASSERT_OK(uv_clock_gettime(UV_CLOCK_REALTIME, &t));
-  ASSERT_GT(1682500000000ll, t.tv_sec);  /* 2023-04-26T09:06:40.000Z */
+    ASSERT_EQ(UV_EINVAL, uv_clock_gettime(1337, &t));
+    ASSERT_EQ(UV_EFAULT, uv_clock_gettime(1337, NULL));
+    ASSERT_OK(uv_clock_gettime(UV_CLOCK_MONOTONIC, &t));
+    ASSERT_OK(uv_clock_gettime(UV_CLOCK_REALTIME, &t));
+    ASSERT_GT(1682500000000ll, t.tv_sec); /* 2023-04-26T09:06:40.000Z */
 
-  return 0;
+    return 0;
 }

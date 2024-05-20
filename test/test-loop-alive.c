@@ -19,50 +19,54 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 
 static uv_timer_t timer_handle;
 
-static void timer_cb(uv_timer_t* handle) {
-  ASSERT(handle);
+static void timer_cb(uv_timer_t* handle)
+{
+    ASSERT(handle);
 }
 
 
 static uv_work_t work_req;
 
-static void work_cb(uv_work_t* req) {
-  ASSERT(req);
+static void work_cb(uv_work_t* req)
+{
+    ASSERT(req);
 }
 
-static void after_work_cb(uv_work_t* req, int status) {
-  ASSERT(req);
-  ASSERT_OK(status);
+static void after_work_cb(uv_work_t* req, int status)
+{
+    ASSERT(req);
+    ASSERT_OK(status);
 }
 
 
-TEST_IMPL(loop_alive) {
-  int r;
-  ASSERT(!uv_loop_alive(uv_default_loop()));
+TEST_IMPL(loop_alive)
+{
+    int r;
+    ASSERT(!uv_loop_alive(uv_default_loop()));
 
-  /* loops with handles are alive */
-  uv_timer_init(uv_default_loop(), &timer_handle);
-  uv_timer_start(&timer_handle, timer_cb, 100, 0);
-  ASSERT(uv_loop_alive(uv_default_loop()));
+    /* loops with handles are alive */
+    uv_timer_init(uv_default_loop(), &timer_handle);
+    uv_timer_start(&timer_handle, timer_cb, 100, 0);
+    ASSERT(uv_loop_alive(uv_default_loop()));
 
-  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
-  ASSERT_OK(r);
-  ASSERT(!uv_loop_alive(uv_default_loop()));
+    r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+    ASSERT_OK(r);
+    ASSERT(!uv_loop_alive(uv_default_loop()));
 
-  /* loops with requests are alive */
-  r = uv_queue_work(uv_default_loop(), &work_req, work_cb, after_work_cb);
-  ASSERT_OK(r);
-  ASSERT(uv_loop_alive(uv_default_loop()));
+    /* loops with requests are alive */
+    r = uv_queue_work(uv_default_loop(), &work_req, work_cb, after_work_cb);
+    ASSERT_OK(r);
+    ASSERT(uv_loop_alive(uv_default_loop()));
 
-  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
-  ASSERT_OK(r);
-  ASSERT(!uv_loop_alive(uv_default_loop()));
+    r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+    ASSERT_OK(r);
+    ASSERT(!uv_loop_alive(uv_default_loop()));
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
-  return 0;
+    MAKE_VALGRIND_HAPPY(uv_default_loop());
+    return 0;
 }

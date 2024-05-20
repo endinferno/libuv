@@ -19,8 +19,8 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -31,79 +31,83 @@ static uv_tcp_t server;
 static uv_tcp_t client;
 
 
-static void close_cb(uv_handle_t* handle) {
-  ASSERT_NOT_NULL(handle);
-  close_cb_called++;
+static void close_cb(uv_handle_t* handle)
+{
+    ASSERT_NOT_NULL(handle);
+    close_cb_called++;
 }
 
 
-static void connection_cb(uv_stream_t* tcp, int status) {
-  ASSERT_OK(status);
-  uv_close((uv_handle_t*)&server, close_cb);
-  connection_cb_called++;
+static void connection_cb(uv_stream_t* tcp, int status)
+{
+    ASSERT_OK(status);
+    uv_close((uv_handle_t*)&server, close_cb);
+    connection_cb_called++;
 }
 
 
-static void start_server(void) {
-  struct sockaddr_in addr;
-  int r;
+static void start_server(void)
+{
+    struct sockaddr_in addr;
+    int r;
 
-  ASSERT_OK(uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
+    ASSERT_OK(uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
 
-  r = uv_tcp_init(uv_default_loop(), &server);
-  ASSERT_OK(r);
+    r = uv_tcp_init(uv_default_loop(), &server);
+    ASSERT_OK(r);
 
-  r = uv_tcp_bind(&server, (const struct sockaddr*) &addr, 0);
-  ASSERT_OK(r);
+    r = uv_tcp_bind(&server, (const struct sockaddr*)&addr, 0);
+    ASSERT_OK(r);
 
-  r = uv_listen((uv_stream_t*)&server, 128, connection_cb);
-  ASSERT_OK(r);
+    r = uv_listen((uv_stream_t*)&server, 128, connection_cb);
+    ASSERT_OK(r);
 
-  r = uv_listen((uv_stream_t*)&server, 128, connection_cb);
-  ASSERT_OK(r);
+    r = uv_listen((uv_stream_t*)&server, 128, connection_cb);
+    ASSERT_OK(r);
 }
 
 
-static void connect_cb(uv_connect_t* req, int status) {
-  ASSERT_NOT_NULL(req);
-  ASSERT_OK(status);
-  free(req);
-  uv_close((uv_handle_t*)&client, close_cb);
-  connect_cb_called++;
+static void connect_cb(uv_connect_t* req, int status)
+{
+    ASSERT_NOT_NULL(req);
+    ASSERT_OK(status);
+    free(req);
+    uv_close((uv_handle_t*)&client, close_cb);
+    connect_cb_called++;
 }
 
 
-static void client_connect(void) {
-  struct sockaddr_in addr;
-  uv_connect_t* connect_req = malloc(sizeof *connect_req);
-  int r;
+static void client_connect(void)
+{
+    struct sockaddr_in addr;
+    uv_connect_t* connect_req = malloc(sizeof *connect_req);
+    int r;
 
-  ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
-  ASSERT_NOT_NULL(connect_req);
+    ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+    ASSERT_NOT_NULL(connect_req);
 
-  r = uv_tcp_init(uv_default_loop(), &client);
-  ASSERT_OK(r);
+    r = uv_tcp_init(uv_default_loop(), &client);
+    ASSERT_OK(r);
 
-  r = uv_tcp_connect(connect_req,
-                     &client,
-                     (const struct sockaddr*) &addr,
-                     connect_cb);
-  ASSERT_OK(r);
+    r = uv_tcp_connect(
+        connect_req, &client, (const struct sockaddr*)&addr, connect_cb);
+    ASSERT_OK(r);
 }
 
 
 
-TEST_IMPL(multiple_listen) {
-  start_server();
+TEST_IMPL(multiple_listen)
+{
+    start_server();
 
-  client_connect();
+    client_connect();
 
-  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+    uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  ASSERT_EQ(1, connection_cb_called);
-  ASSERT_EQ(1, connect_cb_called);
-  ASSERT_EQ(2, close_cb_called);
+    ASSERT_EQ(1, connection_cb_called);
+    ASSERT_EQ(1, connect_cb_called);
+    ASSERT_EQ(2, close_cb_called);
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
-  return 0;
+    MAKE_VALGRIND_HAPPY(uv_default_loop());
+    return 0;
 }

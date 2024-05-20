@@ -19,15 +19,16 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define CHECK_HANDLE(handle) \
-  ASSERT_NE((uv_udp_t*)(handle) == &server || (uv_udp_t*)(handle) == &client, 0)
+    ASSERT_NE(               \
+        (uv_udp_t*)(handle) == &server || (uv_udp_t*)(handle) == &client, 0)
 
 static uv_udp_t server;
 static uv_udp_t client;
@@ -37,85 +38,84 @@ static int sv_recv_cb_called;
 static int close_cb_called;
 
 
-static void alloc_cb(uv_handle_t* handle,
-                     size_t suggested_size,
-                     uv_buf_t* buf) {
-  static char slab[65536];
-  CHECK_HANDLE(handle);
-  ASSERT_LE(suggested_size, sizeof(slab));
-  buf->base = slab;
-  buf->len = sizeof(slab);
+static void alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf)
+{
+    static char slab[65536];
+    CHECK_HANDLE(handle);
+    ASSERT_LE(suggested_size, sizeof(slab));
+    buf->base = slab;
+    buf->len = sizeof(slab);
 }
 
 
-static void close_cb(uv_handle_t* handle) {
-  CHECK_HANDLE(handle);
-  ASSERT(uv_is_closing(handle));
-  close_cb_called++;
+static void close_cb(uv_handle_t* handle)
+{
+    CHECK_HANDLE(handle);
+    ASSERT(uv_is_closing(handle));
+    close_cb_called++;
 }
 
 
-static void sv_recv_cb(uv_udp_t* handle,
-                       ssize_t nread,
-                       const uv_buf_t* rcvbuf,
-                       const struct sockaddr* addr,
-                       unsigned flags) {
-  ASSERT_GT(nread, 0);
+static void sv_recv_cb(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
+                       const struct sockaddr* addr, unsigned flags)
+{
+    ASSERT_GT(nread, 0);
 
-  if (nread == 0) {
-    ASSERT_NULL(addr);
-    return;
-  }
+    if (nread == 0) {
+        ASSERT_NULL(addr);
+        return;
+    }
 
-  ASSERT_EQ(4, nread);
-  ASSERT_NOT_NULL(addr);
+    ASSERT_EQ(4, nread);
+    ASSERT_NOT_NULL(addr);
 
-  ASSERT_OK(memcmp("EXIT", rcvbuf->base, nread));
-  uv_close((uv_handle_t*) handle, close_cb);
-  uv_close((uv_handle_t*) &client, close_cb);
+    ASSERT_OK(memcmp("EXIT", rcvbuf->base, nread));
+    uv_close((uv_handle_t*)handle, close_cb);
+    uv_close((uv_handle_t*)&client, close_cb);
 
-  sv_recv_cb_called++;
+    sv_recv_cb_called++;
 }
 
 
-TEST_IMPL(udp_try_send) {
-  struct sockaddr_in addr;
-  static char buffer[64 * 1024];
-  uv_buf_t buf;
-  int r;
+TEST_IMPL(udp_try_send)
+{
+    struct sockaddr_in addr;
+    static char buffer[64 * 1024];
+    uv_buf_t buf;
+    int r;
 
-  ASSERT_OK(uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
+    ASSERT_OK(uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
 
-  r = uv_udp_init(uv_default_loop(), &server);
-  ASSERT_OK(r);
+    r = uv_udp_init(uv_default_loop(), &server);
+    ASSERT_OK(r);
 
-  r = uv_udp_bind(&server, (const struct sockaddr*) &addr, 0);
-  ASSERT_OK(r);
+    r = uv_udp_bind(&server, (const struct sockaddr*)&addr, 0);
+    ASSERT_OK(r);
 
-  r = uv_udp_recv_start(&server, alloc_cb, sv_recv_cb);
-  ASSERT_OK(r);
+    r = uv_udp_recv_start(&server, alloc_cb, sv_recv_cb);
+    ASSERT_OK(r);
 
-  ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+    ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
 
-  r = uv_udp_init(uv_default_loop(), &client);
-  ASSERT_OK(r);
+    r = uv_udp_init(uv_default_loop(), &client);
+    ASSERT_OK(r);
 
-  buf = uv_buf_init(buffer, sizeof(buffer));
-  r = uv_udp_try_send(&client, &buf, 1, (const struct sockaddr*) &addr);
-  ASSERT_EQ(r, UV_EMSGSIZE);
+    buf = uv_buf_init(buffer, sizeof(buffer));
+    r = uv_udp_try_send(&client, &buf, 1, (const struct sockaddr*)&addr);
+    ASSERT_EQ(r, UV_EMSGSIZE);
 
-  buf = uv_buf_init("EXIT", 4);
-  r = uv_udp_try_send(&client, &buf, 1, (const struct sockaddr*) &addr);
-  ASSERT_EQ(4, r);
+    buf = uv_buf_init("EXIT", 4);
+    r = uv_udp_try_send(&client, &buf, 1, (const struct sockaddr*)&addr);
+    ASSERT_EQ(4, r);
 
-  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+    uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  ASSERT_EQ(2, close_cb_called);
-  ASSERT_EQ(1, sv_recv_cb_called);
+    ASSERT_EQ(2, close_cb_called);
+    ASSERT_EQ(1, sv_recv_cb_called);
 
-  ASSERT_OK(client.send_queue_size);
-  ASSERT_OK(server.send_queue_size);
+    ASSERT_OK(client.send_queue_size);
+    ASSERT_OK(server.send_queue_size);
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
-  return 0;
+    MAKE_VALGRIND_HAPPY(uv_default_loop());
+    return 0;
 }

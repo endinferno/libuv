@@ -22,10 +22,11 @@
 #include "task.h"
 #include "uv.h"
 
-struct async_container {
-  unsigned async_events;
-  unsigned handles_seen;
-  uv_async_t async_handles[1024 * 1024];
+struct async_container
+{
+    unsigned async_events;
+    unsigned handles_seen;
+    uv_async_t async_handles[1024 * 1024];
 };
 
 static volatile int done;
@@ -33,81 +34,86 @@ static uv_thread_t thread_id;
 static struct async_container* container;
 
 
-static unsigned fastrand(void) {
-  static unsigned g = 0;
-  g = g * 214013 + 2531011;
-  return g;
+static unsigned fastrand(void)
+{
+    static unsigned g = 0;
+    g = g * 214013 + 2531011;
+    return g;
 }
 
 
-static void thread_cb(void* arg) {
-  unsigned i;
+static void thread_cb(void* arg)
+{
+    unsigned i;
 
-  while (done == 0) {
-    i = fastrand() % ARRAY_SIZE(container->async_handles);
-    uv_async_send(container->async_handles + i);
-  }
+    while (done == 0) {
+        i = fastrand() % ARRAY_SIZE(container->async_handles);
+        uv_async_send(container->async_handles + i);
+    }
 }
 
 
-static void async_cb(uv_async_t* handle) {
-  container->async_events++;
-  handle->data = handle;
+static void async_cb(uv_async_t* handle)
+{
+    container->async_events++;
+    handle->data = handle;
 }
 
 
-static void timer_cb(uv_timer_t* handle) {
-  unsigned i;
+static void timer_cb(uv_timer_t* handle)
+{
+    unsigned i;
 
-  done = 1;
-  ASSERT_OK(uv_thread_join(&thread_id));
+    done = 1;
+    ASSERT_OK(uv_thread_join(&thread_id));
 
-  for (i = 0; i < ARRAY_SIZE(container->async_handles); i++) {
-    uv_async_t* handle = container->async_handles + i;
+    for (i = 0; i < ARRAY_SIZE(container->async_handles); i++) {
+        uv_async_t* handle = container->async_handles + i;
 
-    if (handle->data != NULL)
-      container->handles_seen++;
+        if (handle->data != NULL)
+            container->handles_seen++;
 
-    uv_close((uv_handle_t*) handle, NULL);
-  }
+        uv_close((uv_handle_t*)handle, NULL);
+    }
 
-  uv_close((uv_handle_t*) handle, NULL);
+    uv_close((uv_handle_t*)handle, NULL);
 }
 
 
-BENCHMARK_IMPL(million_async) {
-  char fmtbuf[3][32];
-  uv_timer_t timer_handle;
-  uv_async_t* handle;
-  uv_loop_t* loop;
-  int timeout;
-  unsigned i;
+BENCHMARK_IMPL(million_async)
+{
+    char fmtbuf[3][32];
+    uv_timer_t timer_handle;
+    uv_async_t* handle;
+    uv_loop_t* loop;
+    int timeout;
+    unsigned i;
 
-  loop = uv_default_loop();
-  timeout = 5000;
+    loop = uv_default_loop();
+    timeout = 5000;
 
-  container = malloc(sizeof(*container));
-  ASSERT_NOT_NULL(container);
-  container->async_events = 0;
-  container->handles_seen = 0;
+    container = malloc(sizeof(*container));
+    ASSERT_NOT_NULL(container);
+    container->async_events = 0;
+    container->handles_seen = 0;
 
-  for (i = 0; i < ARRAY_SIZE(container->async_handles); i++) {
-    handle = container->async_handles + i;
-    ASSERT_OK(uv_async_init(loop, handle, async_cb));
-    handle->data = NULL;
-  }
+    for (i = 0; i < ARRAY_SIZE(container->async_handles); i++) {
+        handle = container->async_handles + i;
+        ASSERT_OK(uv_async_init(loop, handle, async_cb));
+        handle->data = NULL;
+    }
 
-  ASSERT_OK(uv_timer_init(loop, &timer_handle));
-  ASSERT_OK(uv_timer_start(&timer_handle, timer_cb, timeout, 0));
-  ASSERT_OK(uv_thread_create(&thread_id, thread_cb, NULL));
-  ASSERT_OK(uv_run(loop, UV_RUN_DEFAULT));
-  printf("%s async events in %.1f seconds (%s/s, %s unique handles seen)\n",
-          fmt(&fmtbuf[0], container->async_events),
-          timeout / 1000.,
-          fmt(&fmtbuf[1], container->async_events / (timeout / 1000.)),
-          fmt(&fmtbuf[2], container->handles_seen));
-  free(container);
+    ASSERT_OK(uv_timer_init(loop, &timer_handle));
+    ASSERT_OK(uv_timer_start(&timer_handle, timer_cb, timeout, 0));
+    ASSERT_OK(uv_thread_create(&thread_id, thread_cb, NULL));
+    ASSERT_OK(uv_run(loop, UV_RUN_DEFAULT));
+    printf("%s async events in %.1f seconds (%s/s, %s unique handles seen)\n",
+           fmt(&fmtbuf[0], container->async_events),
+           timeout / 1000.,
+           fmt(&fmtbuf[1], container->async_events / (timeout / 1000.)),
+           fmt(&fmtbuf[2], container->handles_seen));
+    free(container);
 
-  MAKE_VALGRIND_HAPPY(loop);
-  return 0;
+    MAKE_VALGRIND_HAPPY(loop);
+    return 0;
 }

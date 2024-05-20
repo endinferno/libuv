@@ -19,68 +19,71 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "internal.h"
+#include "uv.h"
 
 #ifdef __linux__
 
-#define uv__random_getrandom_init() 0
+#    define uv__random_getrandom_init() 0
 
-#else  /* !__linux__ */
+#else /* !__linux__ */
 
-#include <stddef.h>
-#include <dlfcn.h>
+#    include <dlfcn.h>
+#    include <stddef.h>
 
-typedef ssize_t (*uv__getrandom_cb)(void *, size_t, unsigned);
+typedef ssize_t (*uv__getrandom_cb)(void*, size_t, unsigned);
 
 static uv__getrandom_cb uv__getrandom;
 static uv_once_t once = UV_ONCE_INIT;
 
-static void uv__random_getrandom_init_once(void) {
-  uv__getrandom = (uv__getrandom_cb) dlsym(RTLD_DEFAULT, "getrandom");
+static void uv__random_getrandom_init_once(void)
+{
+    uv__getrandom = (uv__getrandom_cb)dlsym(RTLD_DEFAULT, "getrandom");
 }
 
-static int uv__random_getrandom_init(void) {
-  uv_once(&once, uv__random_getrandom_init_once);
+static int uv__random_getrandom_init(void)
+{
+    uv_once(&once, uv__random_getrandom_init_once);
 
-  if (uv__getrandom == NULL)
-    return UV_ENOSYS;
+    if (uv__getrandom == NULL)
+        return UV_ENOSYS;
 
-  return 0;
+    return 0;
 }
 
-#endif  /* !__linux__ */
+#endif /* !__linux__ */
 
-int uv__random_getrandom(void* buf, size_t buflen) {
-  ssize_t n;
-  size_t pos;
-  int rc;
+int uv__random_getrandom(void* buf, size_t buflen)
+{
+    ssize_t n;
+    size_t pos;
+    int rc;
 
-  rc = uv__random_getrandom_init();
-  if (rc != 0)
-    return rc;
+    rc = uv__random_getrandom_init();
+    if (rc != 0)
+        return rc;
 
-  for (pos = 0; pos != buflen; pos += n) {
-    do {
-      n = buflen - pos;
+    for (pos = 0; pos != buflen; pos += n) {
+        do {
+            n = buflen - pos;
 
-      /* Most getrandom() implementations promise that reads <= 256 bytes
-       * will always succeed and won't be interrupted by signals.
-       * It's therefore useful to split it up in smaller reads because
-       * one big read may, in theory, continuously fail with EINTR.
-       */
-      if (n > 256)
-        n = 256;
+            /* Most getrandom() implementations promise that reads <= 256 bytes
+             * will always succeed and won't be interrupted by signals.
+             * It's therefore useful to split it up in smaller reads because
+             * one big read may, in theory, continuously fail with EINTR.
+             */
+            if (n > 256)
+                n = 256;
 
-      n = uv__getrandom((char *) buf + pos, n, 0);
-    } while (n == -1 && errno == EINTR);
+            n = uv__getrandom((char*)buf + pos, n, 0);
+        } while (n == -1 && errno == EINTR);
 
-    if (n == -1)
-      return UV__ERR(errno);
+        if (n == -1)
+            return UV__ERR(errno);
 
-    if (n == 0)
-      return UV_EIO;
-  }
+        if (n == 0)
+            return UV_EIO;
+    }
 
-  return 0;
+    return 0;
 }

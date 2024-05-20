@@ -19,8 +19,8 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 #include <string.h>
 
 static uv_async_t async_handle;
@@ -29,36 +29,39 @@ static int check_cb_called;
 static uv_thread_t thread;
 
 
-static void thread_cb(void* dummy) {
-  (void) &dummy;
-  uv_async_send(&async_handle);
+static void thread_cb(void* dummy)
+{
+    (void)&dummy;
+    uv_async_send(&async_handle);
 }
 
 
-static void check_cb(uv_check_t* handle) {
-  ASSERT_OK(check_cb_called);
-  uv_close((uv_handle_t*) &async_handle, NULL);
-  uv_close((uv_handle_t*) &check_handle, NULL);
-  check_cb_called++;
+static void check_cb(uv_check_t* handle)
+{
+    ASSERT_OK(check_cb_called);
+    uv_close((uv_handle_t*)&async_handle, NULL);
+    uv_close((uv_handle_t*)&check_handle, NULL);
+    check_cb_called++;
 }
 
 
-TEST_IMPL(async_null_cb) {
-  /*
-   * Fill async_handle with garbage values.
-   * uv_async_init() should properly initialize struct fields regardless of
-   * initial values.
-   * This is added to verify paddings between fields do not affect behavior.
-   */
-  memset(&async_handle, 0xff, sizeof(async_handle));
+TEST_IMPL(async_null_cb)
+{
+    /*
+     * Fill async_handle with garbage values.
+     * uv_async_init() should properly initialize struct fields regardless of
+     * initial values.
+     * This is added to verify paddings between fields do not affect behavior.
+     */
+    memset(&async_handle, 0xff, sizeof(async_handle));
 
-  ASSERT_OK(uv_async_init(uv_default_loop(), &async_handle, NULL));
-  ASSERT_OK(uv_check_init(uv_default_loop(), &check_handle));
-  ASSERT_OK(uv_check_start(&check_handle, check_cb));
-  ASSERT_OK(uv_thread_create(&thread, thread_cb, NULL));
-  ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
-  ASSERT_OK(uv_thread_join(&thread));
-  ASSERT_EQ(1, check_cb_called);
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
-  return 0;
+    ASSERT_OK(uv_async_init(uv_default_loop(), &async_handle, NULL));
+    ASSERT_OK(uv_check_init(uv_default_loop(), &check_handle));
+    ASSERT_OK(uv_check_start(&check_handle, check_cb));
+    ASSERT_OK(uv_thread_create(&thread, thread_cb, NULL));
+    ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+    ASSERT_OK(uv_thread_join(&thread));
+    ASSERT_EQ(1, check_cb_called);
+    MAKE_VALGRIND_HAPPY(uv_default_loop());
+    return 0;
 }

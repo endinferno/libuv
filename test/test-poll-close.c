@@ -22,13 +22,13 @@
 #include <errno.h>
 
 #ifndef _WIN32
-# include <fcntl.h>
-# include <sys/socket.h>
-# include <unistd.h>
+#    include <fcntl.h>
+#    include <sys/socket.h>
+#    include <unistd.h>
 #endif
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 
 #define NUM_SOCKETS 64
 
@@ -36,38 +36,40 @@
 static int close_cb_called = 0;
 
 
-static void close_cb(uv_handle_t* handle) {
-  close_cb_called++;
+static void close_cb(uv_handle_t* handle)
+{
+    close_cb_called++;
 }
 
 
-TEST_IMPL(poll_close) {
-  uv_os_sock_t sockets[NUM_SOCKETS];
-  uv_poll_t poll_handles[NUM_SOCKETS];
-  int i;
+TEST_IMPL(poll_close)
+{
+    uv_os_sock_t sockets[NUM_SOCKETS];
+    uv_poll_t poll_handles[NUM_SOCKETS];
+    int i;
 
 #ifdef _WIN32
-  {
-    struct WSAData wsa_data;
-    int r = WSAStartup(MAKEWORD(2, 2), &wsa_data);
-    ASSERT_OK(r);
-  }
+    {
+        struct WSAData wsa_data;
+        int r = WSAStartup(MAKEWORD(2, 2), &wsa_data);
+        ASSERT_OK(r);
+    }
 #endif
 
-  for (i = 0; i < NUM_SOCKETS; i++) {
-    sockets[i] = socket(AF_INET, SOCK_STREAM, 0);
-    uv_poll_init_socket(uv_default_loop(), &poll_handles[i], sockets[i]);
-    uv_poll_start(&poll_handles[i], UV_READABLE | UV_WRITABLE, NULL);
-  }
+    for (i = 0; i < NUM_SOCKETS; i++) {
+        sockets[i] = socket(AF_INET, SOCK_STREAM, 0);
+        uv_poll_init_socket(uv_default_loop(), &poll_handles[i], sockets[i]);
+        uv_poll_start(&poll_handles[i], UV_READABLE | UV_WRITABLE, NULL);
+    }
 
-  for (i = 0; i < NUM_SOCKETS; i++) {
-    uv_close((uv_handle_t*) &poll_handles[i], close_cb);
-  }
+    for (i = 0; i < NUM_SOCKETS; i++) {
+        uv_close((uv_handle_t*)&poll_handles[i], close_cb);
+    }
 
-  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+    uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  ASSERT_EQ(close_cb_called, NUM_SOCKETS);
+    ASSERT_EQ(close_cb_called, NUM_SOCKETS);
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
-  return 0;
+    MAKE_VALGRIND_HAPPY(uv_default_loop());
+    return 0;
 }

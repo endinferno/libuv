@@ -19,8 +19,8 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,47 +31,50 @@ static uv_tcp_t tcp;
 static int close_cb_called;
 
 
-static void close_cb(uv_handle_t* handle) {
-  close_cb_called++;
+static void close_cb(uv_handle_t* handle)
+{
+    close_cb_called++;
 }
 
 
-static void check_buffer_size(uv_handle_t* handle) {
-  int value;
+static void check_buffer_size(uv_handle_t* handle)
+{
+    int value;
 
-  value = 0;
-  ASSERT_OK(uv_recv_buffer_size(handle, &value));
-  ASSERT_GT(value, 0);
+    value = 0;
+    ASSERT_OK(uv_recv_buffer_size(handle, &value));
+    ASSERT_GT(value, 0);
 
-  value = 10000;
-  ASSERT_OK(uv_recv_buffer_size(handle, &value));
+    value = 10000;
+    ASSERT_OK(uv_recv_buffer_size(handle, &value));
 
-  value = 0;
-  ASSERT_OK(uv_recv_buffer_size(handle, &value));
-  /* linux sets double the value */
-  ASSERT(value == 10000 || value == 20000);
+    value = 0;
+    ASSERT_OK(uv_recv_buffer_size(handle, &value));
+    /* linux sets double the value */
+    ASSERT(value == 10000 || value == 20000);
 }
 
 
-TEST_IMPL(socket_buffer_size) {
-  struct sockaddr_in addr;
+TEST_IMPL(socket_buffer_size)
+{
+    struct sockaddr_in addr;
 
-  ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+    ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
 
-  ASSERT_OK(uv_tcp_init(uv_default_loop(), &tcp));
-  ASSERT_OK(uv_tcp_bind(&tcp, (struct sockaddr*) &addr, 0));
-  check_buffer_size((uv_handle_t*) &tcp);
-  uv_close((uv_handle_t*) &tcp, close_cb);
+    ASSERT_OK(uv_tcp_init(uv_default_loop(), &tcp));
+    ASSERT_OK(uv_tcp_bind(&tcp, (struct sockaddr*)&addr, 0));
+    check_buffer_size((uv_handle_t*)&tcp);
+    uv_close((uv_handle_t*)&tcp, close_cb);
 
-  ASSERT_OK(uv_udp_init(uv_default_loop(), &udp));
-  ASSERT_OK(uv_udp_bind(&udp, (struct sockaddr*) &addr, 0));
-  check_buffer_size((uv_handle_t*) &udp);
-  uv_close((uv_handle_t*) &udp, close_cb);
+    ASSERT_OK(uv_udp_init(uv_default_loop(), &udp));
+    ASSERT_OK(uv_udp_bind(&udp, (struct sockaddr*)&addr, 0));
+    check_buffer_size((uv_handle_t*)&udp);
+    uv_close((uv_handle_t*)&udp, close_cb);
 
-  ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+    ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 
-  ASSERT_EQ(2, close_cb_called);
+    ASSERT_EQ(2, close_cb_called);
 
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
-  return 0;
+    MAKE_VALGRIND_HAPPY(uv_default_loop());
+    return 0;
 }

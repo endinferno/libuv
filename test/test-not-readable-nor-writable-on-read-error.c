@@ -19,86 +19,84 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 
 static uv_loop_t loop;
 static uv_tcp_t tcp_client;
 static uv_connect_t connect_req;
 static uv_write_t write_req;
-static char reset_me_cmd[] = {'Q', 'S', 'H'};
+static char reset_me_cmd[] = { 'Q', 'S', 'H' };
 
 static int connect_cb_called;
 static int read_cb_called;
 static int write_cb_called;
 static int close_cb_called;
 
-static void write_cb(uv_write_t* req, int status) {
-  write_cb_called++;
-  ASSERT_OK(status);
+static void write_cb(uv_write_t* req, int status)
+{
+    write_cb_called++;
+    ASSERT_OK(status);
 }
 
-static void alloc_cb(uv_handle_t* handle,
-                     size_t suggested_size,
-                     uv_buf_t* buf) {
-  static char slab[64];
-  buf->base = slab;
-  buf->len = sizeof(slab);
+static void alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf)
+{
+    static char slab[64];
+    buf->base = slab;
+    buf->len = sizeof(slab);
 }
 
-static void close_cb(uv_handle_t* handle) {
-  close_cb_called++;
+static void close_cb(uv_handle_t* handle)
+{
+    close_cb_called++;
 }
 
-static void read_cb(uv_stream_t* handle, ssize_t nread, const uv_buf_t* buf) {
-  read_cb_called++;
+static void read_cb(uv_stream_t* handle, ssize_t nread, const uv_buf_t* buf)
+{
+    read_cb_called++;
 
-  ASSERT((nread < 0) && (nread != UV_EOF));
-  ASSERT_OK(uv_is_writable(handle));
-  ASSERT_OK(uv_is_readable(handle));
+    ASSERT((nread < 0) && (nread != UV_EOF));
+    ASSERT_OK(uv_is_writable(handle));
+    ASSERT_OK(uv_is_readable(handle));
 
-  uv_close((uv_handle_t*) handle, close_cb);
+    uv_close((uv_handle_t*)handle, close_cb);
 }
 
-static void connect_cb(uv_connect_t* req, int status) {
-  int r;
-  uv_buf_t reset_me;
+static void connect_cb(uv_connect_t* req, int status)
+{
+    int r;
+    uv_buf_t reset_me;
 
-  connect_cb_called++;
-  ASSERT_OK(status);
+    connect_cb_called++;
+    ASSERT_OK(status);
 
-  r = uv_read_start((uv_stream_t*) &tcp_client, alloc_cb, read_cb);
-  ASSERT_OK(r);
+    r = uv_read_start((uv_stream_t*)&tcp_client, alloc_cb, read_cb);
+    ASSERT_OK(r);
 
-  reset_me = uv_buf_init(reset_me_cmd, sizeof(reset_me_cmd));
+    reset_me = uv_buf_init(reset_me_cmd, sizeof(reset_me_cmd));
 
-  r = uv_write(&write_req,
-               (uv_stream_t*) &tcp_client,
-               &reset_me,
-               1,
-               write_cb);
+    r = uv_write(&write_req, (uv_stream_t*)&tcp_client, &reset_me, 1, write_cb);
 
-  ASSERT_OK(r);
+    ASSERT_OK(r);
 }
 
-TEST_IMPL(not_readable_nor_writable_on_read_error) {
-  struct sockaddr_in sa;
-  ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &sa));
-  ASSERT_OK(uv_loop_init(&loop));
-  ASSERT_OK(uv_tcp_init(&loop, &tcp_client));
+TEST_IMPL(not_readable_nor_writable_on_read_error)
+{
+    struct sockaddr_in sa;
+    ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &sa));
+    ASSERT_OK(uv_loop_init(&loop));
+    ASSERT_OK(uv_tcp_init(&loop, &tcp_client));
 
-  ASSERT_OK(uv_tcp_connect(&connect_req,
-                           &tcp_client,
-                           (const struct sockaddr*) &sa,
-                           connect_cb));
+    ASSERT_OK(uv_tcp_connect(
+        &connect_req, &tcp_client, (const struct sockaddr*)&sa, connect_cb));
 
-  ASSERT_OK(uv_run(&loop, UV_RUN_DEFAULT));
+    ASSERT_OK(uv_run(&loop, UV_RUN_DEFAULT));
 
-  ASSERT_EQ(1, connect_cb_called);
-  ASSERT_EQ(1, read_cb_called);
-  ASSERT_EQ(1, write_cb_called);
-  ASSERT_EQ(1, close_cb_called);
+    ASSERT_EQ(1, connect_cb_called);
+    ASSERT_EQ(1, read_cb_called);
+    ASSERT_EQ(1, write_cb_called);
+    ASSERT_EQ(1, close_cb_called);
 
-  MAKE_VALGRIND_HAPPY(&loop);
-  return 0;
+    MAKE_VALGRIND_HAPPY(&loop);
+    return 0;
 }

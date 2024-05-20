@@ -25,101 +25,107 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define NUM_SYNC_REQS         (10 * 1e5)
-#define NUM_ASYNC_REQS        (1 * (int) 1e5)
-#define MAX_CONCURRENT_REQS   32
+#define NUM_SYNC_REQS (10 * 1e5)
+#define NUM_ASYNC_REQS (1 * (int)1e5)
+#define MAX_CONCURRENT_REQS 32
 
-#define sync_stat(req, path)                                                  \
-  do {                                                                        \
-    uv_fs_stat(NULL, (req), (path), NULL);                                    \
-    uv_fs_req_cleanup((req));                                                 \
-  }                                                                           \
-  while (0)
+#define sync_stat(req, path)                   \
+    do {                                       \
+        uv_fs_stat(NULL, (req), (path), NULL); \
+        uv_fs_req_cleanup((req));              \
+    } while (0)
 
-struct async_req {
-  const char* path;
-  uv_fs_t fs_req;
-  int* count;
+struct async_req
+{
+    const char* path;
+    uv_fs_t fs_req;
+    int* count;
 };
 
 
-static void warmup(const char* path) {
-  uv_fs_t reqs[MAX_CONCURRENT_REQS];
-  unsigned int i;
+static void warmup(const char* path)
+{
+    uv_fs_t reqs[MAX_CONCURRENT_REQS];
+    unsigned int i;
 
-  /* warm up the thread pool */
-  for (i = 0; i < ARRAY_SIZE(reqs); i++)
-    uv_fs_stat(uv_default_loop(), reqs + i, path, uv_fs_req_cleanup);
+    /* warm up the thread pool */
+    for (i = 0; i < ARRAY_SIZE(reqs); i++)
+        uv_fs_stat(uv_default_loop(), reqs + i, path, uv_fs_req_cleanup);
 
-  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
-
-  /* warm up the OS dirent cache */
-  for (i = 0; i < 16; i++)
-    sync_stat(reqs + 0, path);
-}
-
-
-static void sync_bench(const char* path) {
-  char fmtbuf[2][32];
-  uint64_t before;
-  uint64_t after;
-  uv_fs_t req;
-  int i;
-
-  /* do the sync benchmark */
-  before = uv_hrtime();
-
-  for (i = 0; i < NUM_SYNC_REQS; i++)
-    sync_stat(&req, path);
-
-  after = uv_hrtime();
-
-  printf("%s stats (sync): %.2fs (%s/s)\n",
-         fmt(&fmtbuf[0], 1.0 * NUM_SYNC_REQS),
-         (after - before) / 1e9,
-         fmt(&fmtbuf[1], (1.0 * NUM_SYNC_REQS) / ((after - before) / 1e9)));
-  fflush(stdout);
-}
-
-
-static void stat_cb(uv_fs_t* fs_req) {
-  struct async_req* req = container_of(fs_req, struct async_req, fs_req);
-  uv_fs_req_cleanup(&req->fs_req);
-  if (*req->count == 0) return;
-  uv_fs_stat(uv_default_loop(), &req->fs_req, req->path, stat_cb);
-  (*req->count)--;
-}
-
-
-static void async_bench(const char* path) {
-  struct async_req reqs[MAX_CONCURRENT_REQS];
-  struct async_req* req;
-  char fmtbuf[2][32];
-  uint64_t before;
-  uint64_t after;
-  int count;
-  int i;
-
-  for (i = 1; i <= MAX_CONCURRENT_REQS; i++) {
-    count = NUM_ASYNC_REQS;
-
-    for (req = reqs; req < reqs + i; req++) {
-      req->path = path;
-      req->count = &count;
-      uv_fs_stat(uv_default_loop(), &req->fs_req, req->path, stat_cb);
-    }
-
-    before = uv_hrtime();
     uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+
+    /* warm up the OS dirent cache */
+    for (i = 0; i < 16; i++)
+        sync_stat(reqs + 0, path);
+}
+
+
+static void sync_bench(const char* path)
+{
+    char fmtbuf[2][32];
+    uint64_t before;
+    uint64_t after;
+    uv_fs_t req;
+    int i;
+
+    /* do the sync benchmark */
+    before = uv_hrtime();
+
+    for (i = 0; i < NUM_SYNC_REQS; i++)
+        sync_stat(&req, path);
+
     after = uv_hrtime();
 
-    printf("%s stats (%d concurrent): %.2fs (%s/s)\n",
-           fmt(&fmtbuf[0], 1.0 * NUM_ASYNC_REQS),
-           i,
+    printf("%s stats (sync): %.2fs (%s/s)\n",
+           fmt(&fmtbuf[0], 1.0 * NUM_SYNC_REQS),
            (after - before) / 1e9,
-           fmt(&fmtbuf[1], (1.0 * NUM_ASYNC_REQS) / ((after - before) / 1e9)));
+           fmt(&fmtbuf[1], (1.0 * NUM_SYNC_REQS) / ((after - before) / 1e9)));
     fflush(stdout);
-  }
+}
+
+
+static void stat_cb(uv_fs_t* fs_req)
+{
+    struct async_req* req = container_of(fs_req, struct async_req, fs_req);
+    uv_fs_req_cleanup(&req->fs_req);
+    if (*req->count == 0)
+        return;
+    uv_fs_stat(uv_default_loop(), &req->fs_req, req->path, stat_cb);
+    (*req->count)--;
+}
+
+
+static void async_bench(const char* path)
+{
+    struct async_req reqs[MAX_CONCURRENT_REQS];
+    struct async_req* req;
+    char fmtbuf[2][32];
+    uint64_t before;
+    uint64_t after;
+    int count;
+    int i;
+
+    for (i = 1; i <= MAX_CONCURRENT_REQS; i++) {
+        count = NUM_ASYNC_REQS;
+
+        for (req = reqs; req < reqs + i; req++) {
+            req->path = path;
+            req->count = &count;
+            uv_fs_stat(uv_default_loop(), &req->fs_req, req->path, stat_cb);
+        }
+
+        before = uv_hrtime();
+        uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+        after = uv_hrtime();
+
+        printf(
+            "%s stats (%d concurrent): %.2fs (%s/s)\n",
+            fmt(&fmtbuf[0], 1.0 * NUM_ASYNC_REQS),
+            i,
+            (after - before) / 1e9,
+            fmt(&fmtbuf[1], (1.0 * NUM_ASYNC_REQS) / ((after - before) / 1e9)));
+        fflush(stdout);
+    }
 }
 
 
@@ -128,11 +134,12 @@ static void async_bench(const char* path) {
  * easy for the operating system to cache, taking the actual I/O overhead
  * out of the equation.
  */
-BENCHMARK_IMPL(fs_stat) {
-  const char path[] = ".";
-  warmup(path);
-  sync_bench(path);
-  async_bench(path);
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
-  return 0;
+BENCHMARK_IMPL(fs_stat)
+{
+    const char path[] = ".";
+    warmup(path);
+    sync_bench(path);
+    async_bench(path);
+    MAKE_VALGRIND_HAPPY(uv_default_loop());
+    return 0;
 }

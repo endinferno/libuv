@@ -19,64 +19,70 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
 #include <string.h>
 
 #define PATHMAX 4096
 #define SMALLPATH 1
 
-TEST_IMPL(tmpdir) {
-  char tmpdir[PATHMAX];
-  size_t len;
-  char last;
-  int r;
+TEST_IMPL(tmpdir)
+{
+    char tmpdir[PATHMAX];
+    size_t len;
+    char last;
+    int r;
 
-  /* Test the normal case */
-  len = sizeof tmpdir;
-  tmpdir[0] = '\0';
+    /* Test the normal case */
+    len = sizeof tmpdir;
+    tmpdir[0] = '\0';
 
-  ASSERT_OK(strlen(tmpdir));
-  r = uv_os_tmpdir(tmpdir, &len);
-  ASSERT_OK(r);
-  ASSERT_EQ(strlen(tmpdir), len);
-  ASSERT_GT(len, 0);
-  ASSERT_EQ(tmpdir[len], '\0');
+    ASSERT_OK(strlen(tmpdir));
+    r = uv_os_tmpdir(tmpdir, &len);
+    ASSERT_OK(r);
+    ASSERT_EQ(strlen(tmpdir), len);
+    ASSERT_GT(len, 0);
+    ASSERT_EQ(tmpdir[len], '\0');
 
-  if (len > 1) {
-    last = tmpdir[len - 1];
+    if (len > 1) {
+        last = tmpdir[len - 1];
 #ifdef _WIN32
-    ASSERT_NE(last, '\\');
+        ASSERT_NE(last, '\\');
 #else
-    ASSERT_NE(last, '/');
+        ASSERT_NE(last, '/');
 #endif
-  }
+    }
 
-  /* Test the case where the buffer is too small */
-  len = SMALLPATH;
-  r = uv_os_tmpdir(tmpdir, &len);
-  ASSERT_EQ(r, UV_ENOBUFS);
-  ASSERT_GT(len, SMALLPATH);
+    /* Test the case where the buffer is too small */
+    len = SMALLPATH;
+    r = uv_os_tmpdir(tmpdir, &len);
+    ASSERT_EQ(r, UV_ENOBUFS);
+    ASSERT_GT(len, SMALLPATH);
 
-  /* Test invalid inputs */
-  r = uv_os_tmpdir(NULL, &len);
-  ASSERT_EQ(r, UV_EINVAL);
-  r = uv_os_tmpdir(tmpdir, NULL);
-  ASSERT_EQ(r, UV_EINVAL);
-  len = 0;
-  r = uv_os_tmpdir(tmpdir, &len);
-  ASSERT_EQ(r, UV_EINVAL);
+    /* Test invalid inputs */
+    r = uv_os_tmpdir(NULL, &len);
+    ASSERT_EQ(r, UV_EINVAL);
+    r = uv_os_tmpdir(tmpdir, NULL);
+    ASSERT_EQ(r, UV_EINVAL);
+    len = 0;
+    r = uv_os_tmpdir(tmpdir, &len);
+    ASSERT_EQ(r, UV_EINVAL);
 
 #ifdef _WIN32
-  const char *name = "TMP";
-  char tmpdir_win[] = "C:\\xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
-  r = uv_os_setenv(name, tmpdir_win);
-  ASSERT_OK(r);
-  char tmpdirx[PATHMAX];
-  size_t lenx = sizeof tmpdirx;
-  r = uv_os_tmpdir(tmpdirx, &lenx);
-  ASSERT_OK(r);
+    const char* name = "TMP";
+    char tmpdir_win[] =
+        "C:"
+        "\\xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+    r = uv_os_setenv(name, tmpdir_win);
+    ASSERT_OK(r);
+    char tmpdirx[PATHMAX];
+    size_t lenx = sizeof tmpdirx;
+    r = uv_os_tmpdir(tmpdirx, &lenx);
+    ASSERT_OK(r);
 #endif
 
-  return 0;
+    return 0;
 }

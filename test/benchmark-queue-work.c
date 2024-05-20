@@ -26,46 +26,53 @@ static int done = 0;
 static unsigned events = 0;
 static unsigned result;
 
-static unsigned fastrand(void) {
-  static unsigned g = 0;
-  g = g * 214013 + 2531011;
-  return g;
+static unsigned fastrand(void)
+{
+    static unsigned g = 0;
+    g = g * 214013 + 2531011;
+    return g;
 }
 
-static void work_cb(uv_work_t* req) {
-  req->data = &result;
-  *(unsigned*)req->data = fastrand();
+static void work_cb(uv_work_t* req)
+{
+    req->data = &result;
+    *(unsigned*)req->data = fastrand();
 }
 
-static void after_work_cb(uv_work_t* req, int status) {
-  events++;
-  if (!done)
-    ASSERT_OK(uv_queue_work(req->loop, req, work_cb, after_work_cb));
+static void after_work_cb(uv_work_t* req, int status)
+{
+    events++;
+    if (!done)
+        ASSERT_OK(uv_queue_work(req->loop, req, work_cb, after_work_cb));
 }
 
-static void timer_cb(uv_timer_t* handle) { done = 1; }
+static void timer_cb(uv_timer_t* handle)
+{
+    done = 1;
+}
 
-BENCHMARK_IMPL(queue_work) {
-  char fmtbuf[2][32];
-  uv_timer_t timer_handle;
-  uv_work_t work;
-  uv_loop_t* loop;
-  int timeout;
+BENCHMARK_IMPL(queue_work)
+{
+    char fmtbuf[2][32];
+    uv_timer_t timer_handle;
+    uv_work_t work;
+    uv_loop_t* loop;
+    int timeout;
 
-  loop = uv_default_loop();
-  timeout = 5000;
+    loop = uv_default_loop();
+    timeout = 5000;
 
-  ASSERT_OK(uv_timer_init(loop, &timer_handle));
-  ASSERT_OK(uv_timer_start(&timer_handle, timer_cb, timeout, 0));
+    ASSERT_OK(uv_timer_init(loop, &timer_handle));
+    ASSERT_OK(uv_timer_start(&timer_handle, timer_cb, timeout, 0));
 
-  ASSERT_OK(uv_queue_work(loop, &work, work_cb, after_work_cb));
-  ASSERT_OK(uv_run(loop, UV_RUN_DEFAULT));
+    ASSERT_OK(uv_queue_work(loop, &work, work_cb, after_work_cb));
+    ASSERT_OK(uv_run(loop, UV_RUN_DEFAULT));
 
-  printf("%s async jobs in %.1f seconds (%s/s)\n",
-         fmt(&fmtbuf[0], events),
-         timeout / 1000.,
-         fmt(&fmtbuf[1], events / (timeout / 1000.)));
+    printf("%s async jobs in %.1f seconds (%s/s)\n",
+           fmt(&fmtbuf[0], events),
+           timeout / 1000.,
+           fmt(&fmtbuf[1], events / (timeout / 1000.)));
 
-  MAKE_VALGRIND_HAPPY(loop);
-  return 0;
+    MAKE_VALGRIND_HAPPY(loop);
+    return 0;
 }
