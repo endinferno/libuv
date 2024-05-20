@@ -79,3 +79,4 @@ libuv-*.tar.*
 /dist.libuv.org/
 /libuv-release-tool/
 install/
+compile_commands.json
