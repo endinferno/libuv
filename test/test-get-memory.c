@@ -39,11 +39,7 @@ TEST_IMPL(get_memory)
     ASSERT_GT(free_mem, 0);
     ASSERT_GT(total_mem, 0);
     /* On IBMi PASE, the amount of memory in use is always zero. */
-#ifdef __PASE__
-    ASSERT_EQ(total_mem, free_mem);
-#else
     ASSERT_GT(total_mem, free_mem);
-#endif
     ASSERT_LE(available_mem, total_mem);
     /* we'd really want to test if available <= free, but that is fragile:
      * with no limit set, get_available calls and returns get_free; so if

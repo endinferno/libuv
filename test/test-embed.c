@@ -25,9 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#if !defined(_WIN32) && !defined(_AIX)
-#    include <poll.h>
-#endif
+#include <poll.h>
 
 static uv_async_t async;
 static uv_barrier_t barrier;
@@ -59,9 +57,6 @@ TEST_IMPL(embed)
     ASSERT_LE(0, uv_barrier_wait(&barrier));
 
     while (uv_loop_alive(loop)) {
-#if defined(_WIN32) || defined(_AIX)
-        ASSERT_LE(0, uv_run(loop, UV_RUN_ONCE));
-#else
         int rc;
         do {
             struct pollfd p;
@@ -71,7 +66,6 @@ TEST_IMPL(embed)
             rc = poll(&p, 1, uv_backend_timeout(loop));
         } while (rc == -1 && errno == EINTR);
         ASSERT_LE(0, uv_run(loop, UV_RUN_NOWAIT));
-#endif
     }
 
     ASSERT_OK(uv_thread_join(&thread));

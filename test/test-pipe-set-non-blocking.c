@@ -17,9 +17,7 @@
 #include "uv.h"
 
 #include <string.h> /* memset */
-#ifndef _WIN32
-#    include <unistd.h> /* close */
-#endif
+#include <unistd.h> /* close */
 
 struct thread_ctx
 {
@@ -51,21 +49,7 @@ static void thread_main(void* arg)
     ASSERT_OK(n);
 }
 
-
-#ifdef _WIN32
-static void write_cb(uv_write_t* req, int status)
-{
-    ASSERT_OK(status);
-    req->handle = NULL; /* signal completion of write_cb */
-}
-#endif
-
-#ifdef _WIN32
-#    define NWRITES (10 << 16)
-#else
-#    define NWRITES (10 << 20)
-#endif
-
+#define NWRITES (10 << 20)
 
 TEST_IMPL(pipe_set_non_blocking)
 {
@@ -77,9 +61,6 @@ TEST_IMPL(pipe_set_non_blocking)
     uv_buf_t buf;
     uv_file fd[2];
     int n;
-#ifdef _WIN32
-    uv_write_t write_req;
-#endif
 
     ASSERT_OK(uv_pipe_init(uv_default_loop(), &pipe_handle, 0));
     ASSERT_OK(uv_pipe(fd, 0, 0));
@@ -102,16 +83,6 @@ TEST_IMPL(pipe_set_non_blocking)
          * succeed with the exact number of bytes that we wanted written.
          */
         n = uv_try_write((uv_stream_t*)&pipe_handle, &buf, 1);
-#ifdef _WIN32
-        ASSERT_EQ(n, UV_EAGAIN); /* E_NOTIMPL */
-        ASSERT_OK(uv_write(
-            &write_req, (uv_stream_t*)&pipe_handle, &buf, 1, write_cb));
-        ASSERT_NOT_NULL(write_req.handle);
-        ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_ONCE));
-        ASSERT_NULL(
-            write_req.handle); /* check for signaled completion of write_cb */
-        n = buf.len;
-#endif
         ASSERT_EQ(n, sizeof(data));
         nwritten += n;
     }
@@ -120,11 +91,7 @@ TEST_IMPL(pipe_set_non_blocking)
     ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 
     ASSERT_OK(uv_thread_join(&thread));
-#ifdef _WIN32
-    ASSERT_OK(_close(fd[0])); /* fd[1] is closed by uv_close(). */
-#else
     ASSERT_OK(close(fd[0])); /* fd[1] is closed by uv_close(). */
-#endif
     fd[0] = -1;
     uv_barrier_destroy(&ctx.barrier);
 

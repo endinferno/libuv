@@ -20,19 +20,13 @@
  */
 
 /* These tests are Unix only. */
-#ifndef _WIN32
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
-#    include <string.h>
-#    include <sys/socket.h>
-#    include <sys/wait.h>
-#    include <unistd.h>
-
-#    ifdef __APPLE__
-#        include <TargetConditionals.h>
-#    endif
-
-#    include "task.h"
-#    include "uv.h"
+#include "task.h"
+#include "uv.h"
 
 static int timer_cb_called;
 static int socket_cb_called;
@@ -109,11 +103,7 @@ TEST_IMPL(fork_timer)
     pid_t child_pid;
 
     run_timer_loop_once();
-#    if defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH)
-    child_pid = -1;
-#    else
     child_pid = fork();
-#    endif
     ASSERT_NE(child_pid, -1);
 
     if (child_pid != 0) {
@@ -146,11 +136,7 @@ TEST_IMPL(fork_socketpair)
     /* Create the server watcher in the parent, use it in the child. */
     ASSERT_OK(uv_poll_init(uv_default_loop(), &poll_handle, socket_fds[0]));
 
-#    if defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH)
-    child_pid = -1;
-#    else
     child_pid = fork();
-#    endif
     ASSERT_NE(child_pid, -1);
 
     if (child_pid != 0) {
@@ -201,11 +187,7 @@ TEST_IMPL(fork_socketpair_started)
     */
     ASSERT_EQ(1, uv_run(uv_default_loop(), UV_RUN_NOWAIT));
 
-#    if defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH)
-    child_pid = -1;
-#    else
     child_pid = fork();
-#    endif
     ASSERT_NE(child_pid, -1);
 
     if (child_pid != 0) {
@@ -271,11 +253,7 @@ TEST_IMPL(fork_signal_to_child)
     ASSERT_OK(
         uv_signal_start(&signal_handle, fork_signal_to_child_cb, SIGUSR1));
 
-#    if defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH)
-    child_pid = -1;
-#    else
     child_pid = fork();
-#    endif
     ASSERT_NE(child_pid, -1);
 
     if (child_pid != 0) {
@@ -329,11 +307,7 @@ TEST_IMPL(fork_signal_to_child_closed)
     ASSERT_OK(
         uv_signal_start(&signal_handle, fork_signal_to_child_cb, SIGUSR1));
 
-#    if defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH)
-    child_pid = -1;
-#    else
     child_pid = fork();
-#    endif
     ASSERT_NE(child_pid, -1);
 
     if (child_pid != 0) {
@@ -488,11 +462,7 @@ static void fs_event_cb_file_current_dir(uv_fs_event_t* handle,
     ASSERT_OK(fs_event_cb_called);
     ++fs_event_cb_called;
     ASSERT_OK(status);
-#    if defined(__APPLE__) || defined(__linux__)
     ASSERT_OK(strcmp(filename, "watch_file"));
-#    else
-    ASSERT(filename == NULL || strcmp(filename, "watch_file") == 0);
-#    endif
     uv_close((uv_handle_t*)handle, NULL);
 }
 
@@ -540,8 +510,8 @@ static void assert_watch_file_current_dir(uv_loop_t* const loop,
 }
 
 
-#    define FS_TEST_FILE 0
-#    define FS_TEST_DIR 1
+#define FS_TEST_FILE 0
+#define FS_TEST_DIR 1
 
 static int _do_fork_fs_events_child(int file_or_dir)
 {
@@ -551,11 +521,7 @@ static int _do_fork_fs_events_child(int file_or_dir)
 
     /* Watch in the parent, prime the loop and/or threads. */
     assert_watch_file_current_dir(uv_default_loop(), file_or_dir);
-#    if defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH)
-    child_pid = -1;
-#    else
     child_pid = fork();
-#    endif
     ASSERT_NE(child_pid, -1);
 
     if (child_pid != 0) {
@@ -565,9 +531,6 @@ static int _do_fork_fs_events_child(int file_or_dir)
         /* child */
         /* Ee can watch in a new loop, but dirs only work
            if we're on linux. */
-#    if defined(__APPLE__)
-        file_or_dir = FS_TEST_FILE;
-#    endif
         printf("Running child\n");
         uv_loop_init(&loop);
         printf("Child first watch\n");
@@ -600,45 +563,18 @@ static int _do_fork_fs_events_child(int file_or_dir)
 
 TEST_IMPL(fork_fs_events_child)
 {
-#    if defined(NO_FS_EVENTS)
-    RETURN_SKIP(NO_FS_EVENTS);
-#    endif
     return _do_fork_fs_events_child(FS_TEST_FILE);
 }
 
 
 TEST_IMPL(fork_fs_events_child_dir)
 {
-#    if defined(NO_FS_EVENTS)
-    RETURN_SKIP(NO_FS_EVENTS);
-#    endif
-#    if defined(__APPLE__) || defined(__linux__)
     return _do_fork_fs_events_child(FS_TEST_DIR);
-#    else
-    /* You can't spin up a cfrunloop thread on an apple platform
-       and then fork. See
-       http://objectivistc.tumblr.com/post/16187948939/you-must-exec-a-core-foundation-fork-safety-tale
-    */
-    return 0;
-#    endif
 }
 
 
 TEST_IMPL(fork_fs_events_file_parent_child)
 {
-#    if defined(NO_FS_EVENTS)
-    RETURN_SKIP(NO_FS_EVENTS);
-#    endif
-#    if defined(__sun) || defined(_AIX) || defined(__MVS__)
-    /* It's not possible to implement this without additional
-     * bookkeeping on SunOS. For AIX it is possible, but has to be
-     * written. See
-     * https://github.com/libuv/libuv/pull/846#issuecomment-287170420
-     * TODO: On z/OS, we need to open another message queue and subscribe to the
-     * same events as the parent.
-     */
-    return 0;
-#    else
     /* Establishing a started fs events watcher in the parent should
        still work in the child. */
     uv_timer_t timer;
@@ -662,11 +598,7 @@ TEST_IMPL(fork_fs_events_file_parent_child)
     r = uv_timer_init(loop, &timer);
     ASSERT_OK(r);
 
-#        if defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH)
-    child_pid = -1;
-#        else
     child_pid = fork();
-#        endif
     ASSERT_NE(child_pid, -1);
     if (child_pid != 0) {
         /* parent */
@@ -697,7 +629,6 @@ TEST_IMPL(fork_fs_events_file_parent_child)
 
     MAKE_VALGRIND_HAPPY(loop);
     return 0;
-#    endif
 }
 
 
@@ -740,7 +671,6 @@ static void assert_run_work(uv_loop_t* const loop)
 }
 
 
-#    ifndef __MVS__
 TEST_IMPL(fork_threadpool_queue_work_simple)
 {
     /* The threadpool works in a child process. */
@@ -748,18 +678,14 @@ TEST_IMPL(fork_threadpool_queue_work_simple)
     pid_t child_pid;
     uv_loop_t loop;
 
-#        ifdef __TSAN__
+#ifdef __TSAN__
     RETURN_SKIP("ThreadSanitizer doesn't support multi-threaded fork");
-#        endif
+#endif
 
     /* Prime the pool and default loop. */
     assert_run_work(uv_default_loop());
 
-#        if defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH)
-    child_pid = -1;
-#        else
     child_pid = fork();
-#        endif
     ASSERT_NE(child_pid, -1);
 
     if (child_pid != 0) {
@@ -784,10 +710,3 @@ TEST_IMPL(fork_threadpool_queue_work_simple)
     MAKE_VALGRIND_HAPPY(uv_default_loop());
     return 0;
 }
-#    endif /* !__MVS__ */
-
-#else
-
-typedef int file_has_no_tests; /* ISO C forbids an empty translation unit. */
-
-#endif /* !_WIN32 */

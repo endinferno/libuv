@@ -19,16 +19,14 @@
  * IN THE SOFTWARE.
  */
 
-#if !defined(_WIN32)
+#include "task.h"
+#include "uv.h"
 
-#    include "task.h"
-#    include "uv.h"
-
-#    include <errno.h>
-#    include <string.h>
-#    include <sys/ioctl.h>
-#    include <sys/socket.h>
-#    include <unistd.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 static uv_tcp_t server_handle;
 static uv_tcp_t client_handle;
@@ -45,11 +43,7 @@ static int srv_rd_check = 0;
 
 static int got_eagain(void)
 {
-    return errno == EAGAIN || errno == EINPROGRESS
-#    ifdef EWOULDBLOCK
-           || errno == EWOULDBLOCK
-#    endif
-        ;
+    return errno == EAGAIN || errno == EINPROGRESS || errno == EWOULDBLOCK;
 }
 
 static void idle_cb(uv_idle_t* idle)
@@ -202,9 +196,3 @@ TEST_IMPL(poll_oob)
     MAKE_VALGRIND_HAPPY(loop);
     return 0;
 }
-
-#else
-
-typedef int file_has_no_tests; /* ISO C forbids an empty translation unit. */
-
-#endif

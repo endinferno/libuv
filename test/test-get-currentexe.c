@@ -23,9 +23,7 @@
 #include "uv.h"
 #include <string.h>
 
-#ifndef _WIN32
-#    include <unistd.h>
-#endif
+#include <unistd.h>
 
 #define PATHMAX 4096
 extern char executable_path[];
@@ -42,11 +40,7 @@ TEST_IMPL(get_currentexe)
     r = uv_exepath(buffer, &size);
     ASSERT(!r);
 
-#ifdef _WIN32
-    snprintf(path, sizeof(path), "%s", executable_path);
-#else
     ASSERT_NOT_NULL(realpath(executable_path, path));
-#endif
 
     match = strstr(buffer, path);
     /* Verify that the path returned from uv_exepath is a subdirectory of

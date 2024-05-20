@@ -23,18 +23,11 @@
 #include "uv.h"
 #include <string.h>
 
-#ifndef _WIN32
-#    include <sys/utsname.h>
-#endif
+#include <sys/utsname.h>
 
 TEST_IMPL(uname)
 {
-#ifndef _WIN32
     struct utsname buf;
-#endif
-#ifdef _AIX
-    char temp[256];
-#endif
     uv_utsname_t buffer;
     int r;
 
@@ -46,25 +39,11 @@ TEST_IMPL(uname)
     r = uv_os_uname(&buffer);
     ASSERT_OK(r);
 
-#ifndef _WIN32
     ASSERT_NE(uname(&buf), -1);
     ASSERT_OK(strcmp(buffer.sysname, buf.sysname));
     ASSERT_OK(strcmp(buffer.version, buf.version));
-
-#    ifdef _AIX
-    snprintf(temp, sizeof(temp), "%s.%s", buf.version, buf.release);
-    ASSERT_OK(strcmp(buffer.release, temp));
-#    else
     ASSERT_OK(strcmp(buffer.release, buf.release));
-#    endif /* _AIX */
-
-#    if defined(_AIX) || defined(__PASE__)
-    ASSERT_OK(strcmp(buffer.machine, "ppc64"));
-#    else
     ASSERT_OK(strcmp(buffer.machine, buf.machine));
-#    endif /* defined(_AIX) || defined(__PASE__) */
-
-#endif /* _WIN32 */
 
     return 0;
 }

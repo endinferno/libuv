@@ -23,12 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifdef _WIN32
-#    include <io.h>
-#    define read _read
-#else
-#    include <unistd.h>
-#endif
+#include <unistd.h>
 
 #include "runner.h"
 #include "task.h"
@@ -36,17 +31,6 @@
 
 /* Actual tests and helpers are defined in test-list.h */
 #include "test-list.h"
-
-#ifdef __MVS__
-#    include "zos-base.h"
-/* Initialize environment and zoslib */
-__attribute__((constructor)) void init()
-{
-    zoslib_config_t config;
-    init_zoslib_config(&config);
-    init_zoslib(config);
-}
-#endif
 
 int ipc_helper(int listen_after_write);
 int ipc_helper_heavy_traffic_deadlock_bug(void);
@@ -61,19 +45,12 @@ int spawn_tcp_server_helper(void);
 
 static int maybe_run_test(int argc, char** argv);
 
-#ifdef _WIN32
-typedef BOOL(WINAPI* sCompareObjectHandles)(_In_ HANDLE, _In_ HANDLE);
-#endif
-
-
 int main(int argc, char** argv)
 {
-#ifndef _WIN32
     if (0 == geteuid() && NULL == getenv("UV_RUN_AS_ROOT")) {
         fprintf(stderr, "The libuv test suite cannot be run as root.\n");
         return EXIT_FAILURE;
     }
-#endif
 
     platform_init(argc, argv);
     argv = uv_setup_args(argc, argv);
@@ -166,11 +143,6 @@ static int maybe_run_test(int argc, char** argv)
         const char out[] = "fourth stdio!\n";
         notify_parent_process();
         {
-#ifdef _WIN32
-            DWORD bytes;
-            WriteFile(
-                (HANDLE)_get_osfhandle(3), out, sizeof(out) - 1, &bytes, NULL);
-#else
             ssize_t r;
 
             do
@@ -178,7 +150,6 @@ static int maybe_run_test(int argc, char** argv)
             while (r == -1 && errno == EINTR);
 
             fsync(3);
-#endif
         }
         return 1;
     }
@@ -216,34 +187,12 @@ static int maybe_run_test(int argc, char** argv)
     if (strcmp(argv[1], "spawn_helper8") == 0) {
         uv_os_fd_t closed_fd;
         uv_os_fd_t open_fd;
-#ifdef _WIN32
-        DWORD flags;
-        HMODULE kernelbase_module;
-        sCompareObjectHandles
-            pCompareObjectHandles; /* function introduced in Windows 10 */
-#endif
         notify_parent_process();
         ASSERT_EQ(sizeof(closed_fd), read(0, &closed_fd, sizeof(closed_fd)));
         ASSERT_EQ(sizeof(open_fd), read(0, &open_fd, sizeof(open_fd)));
-#ifdef _WIN32
-        ASSERT_GT((intptr_t)closed_fd, 0);
-        ASSERT_GT((intptr_t)open_fd, 0);
-        ASSERT_NE(0, GetHandleInformation(open_fd, &flags));
-        kernelbase_module = GetModuleHandleA("kernelbase.dll");
-        pCompareObjectHandles = (sCompareObjectHandles)GetProcAddress(
-            kernelbase_module, "CompareObjectHandles");
-        ASSERT_NE(pCompareObjectHandles == NULL ||
-                      !pCompareObjectHandles(open_fd, closed_fd),
-                  0);
-#else
         ASSERT_GT(open_fd, 2);
         ASSERT_GT(closed_fd, 2);
-#    if defined(__PASE__) /* On IBMi PASE, write() returns 1 */
-        ASSERT_EQ(1, write(closed_fd, "x", 1));
-#    else
         ASSERT_EQ(-1, write(closed_fd, "x", 1));
-#    endif /* !__PASE__ */
-#endif
         return 1;
     }
 
@@ -253,7 +202,6 @@ static int maybe_run_test(int argc, char** argv)
         return 1;
     }
 
-#ifndef _WIN32
     if (strcmp(argv[1], "spawn_helper_setuid_setgid") == 0) {
         uv_uid_t uid = atoi(argv[2]);
         uv_gid_t gid = atoi(argv[3]);
@@ -264,7 +212,6 @@ static int maybe_run_test(int argc, char** argv)
 
         return 1;
     }
-#endif /* !_WIN32 */
 
     if (strcmp(argv[1], "process_title_big_argv_helper") == 0) {
         notify_parent_process();

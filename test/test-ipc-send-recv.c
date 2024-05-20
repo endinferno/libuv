@@ -235,17 +235,11 @@ static int run_ipc_send_recv_pipe(int inprocess)
 
 TEST_IMPL(ipc_send_recv_pipe)
 {
-#if defined(NO_SEND_HANDLE_ON_PIPE)
-    RETURN_SKIP(NO_SEND_HANDLE_ON_PIPE);
-#endif
     return run_ipc_send_recv_pipe(0);
 }
 
 TEST_IMPL(ipc_send_recv_pipe_inprocess)
 {
-#if defined(NO_SEND_HANDLE_ON_PIPE)
-    RETURN_SKIP(NO_SEND_HANDLE_ON_PIPE);
-#endif
     return run_ipc_send_recv_pipe(1);
 }
 
@@ -279,17 +273,11 @@ static int run_ipc_send_recv_tcp(int inprocess)
 
 TEST_IMPL(ipc_send_recv_tcp)
 {
-#if defined(NO_SEND_HANDLE_ON_PIPE)
-    RETURN_SKIP(NO_SEND_HANDLE_ON_PIPE);
-#endif
     return run_ipc_send_recv_tcp(0);
 }
 
 TEST_IMPL(ipc_send_recv_tcp_inprocess)
 {
-#if defined(NO_SEND_HANDLE_ON_PIPE)
-    RETURN_SKIP(NO_SEND_HANDLE_ON_PIPE);
-#endif
     return run_ipc_send_recv_tcp(1);
 }
 

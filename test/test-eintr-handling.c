@@ -22,17 +22,8 @@
 #include "task.h"
 #include "uv.h"
 
-#ifdef _WIN32
-
-TEST_IMPL(eintr_handling)
-{
-    RETURN_SKIP("Test not implemented on Windows.");
-}
-
-#else /* !_WIN32 */
-
-#    include <string.h>
-#    include <unistd.h>
+#include <string.h>
+#include <unistd.h>
 
 static uv_loop_t* loop;
 static uv_fs_t read_req;
@@ -97,5 +88,3 @@ TEST_IMPL(eintr_handling)
     MAKE_VALGRIND_HAPPY(loop);
     return 0;
 }
-
-#endif /* !_WIN32 */

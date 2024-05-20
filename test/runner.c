@@ -169,12 +169,10 @@ int run_test(const char* test, int benchmark_output, int test_count)
     main_proc = NULL;
     process_count = 0;
 
-#ifndef _WIN32
     /* Clean up stale socket from previous run. */
     remove(TEST_PIPENAME);
     remove(TEST_PIPENAME_2);
     remove(TEST_PIPENAME_3);
-#endif
 
     /* If it's a helper the user asks for, start it directly. */
     for (task = TASKS; task->main; task++) {
@@ -240,7 +238,6 @@ int run_test(const char* test, int benchmark_output, int test_count)
     }
 
     timeout_multiplier = 1;
-#ifndef _WIN32
     do {
         const char* var;
 
@@ -252,7 +249,6 @@ int run_test(const char* test, int benchmark_output, int test_count)
         if (timeout_multiplier <= 0)
             timeout_multiplier = 1;
     } while (0);
-#endif
 
     result = process_wait(main_proc, 1, task->timeout * timeout_multiplier);
     if (result == -1) {

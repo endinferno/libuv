@@ -98,9 +98,6 @@ static void sv_recv_cb(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
 
 TEST_IMPL(udp_connect6)
 {
-#if defined(__OpenBSD__)
-    RETURN_SKIP("Test does not currently work in OpenBSD");
-#endif
     uv_udp_send_t req;
     struct sockaddr_in6 ext_addr;
     struct sockaddr_in6 tmp_addr;
@@ -129,13 +126,9 @@ TEST_IMPL(udp_connect6)
     /* connect() to INADDR_ANY fails on Windows wih WSAEADDRNOTAVAIL */
     ASSERT_OK(uv_ip6_addr("::", TEST_PORT, &tmp_addr));
     r = uv_udp_connect(&client, (const struct sockaddr*)&tmp_addr);
-#ifdef _WIN32
-    ASSERT_EQ(r, UV_EADDRNOTAVAIL);
-#else
     ASSERT_OK(r);
     r = uv_udp_connect(&client, NULL);
     ASSERT_OK(r);
-#endif
 
     ASSERT_OK(uv_ip6_addr("2001:4860:4860::8888", TEST_PORT, &ext_addr));
     ASSERT_OK(uv_ip6_addr("::1", TEST_PORT, &lo_addr));

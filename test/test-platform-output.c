@@ -54,21 +54,13 @@ TEST_IMPL(platform_output)
     printf("uv_cwd: %s\n", buffer);
 
     err = uv_resident_set_memory(&rss);
-#if defined(__MSYS__)
-    ASSERT_EQ(err, UV_ENOSYS);
-#else
     ASSERT_OK(err);
     printf("uv_resident_set_memory: %llu\n", (unsigned long long)rss);
-#endif
 
     err = uv_uptime(&uptime);
-#if defined(__PASE__)
-    ASSERT_EQ(err, UV_ENOSYS);
-#else
     ASSERT_OK(err);
     ASSERT_GT(uptime, 0);
     printf("uv_uptime: %f\n", uptime);
-#endif
 
     err = uv_getrusage(&rusage);
     ASSERT_OK(err);
@@ -91,7 +83,6 @@ TEST_IMPL(platform_output)
     ASSERT_GE(par, 1);
     printf("uv_available_parallelism: %u\n", par);
 
-#ifdef __linux__
     FILE* file;
     int cgroup_version = 0;
     unsigned int cgroup_par = 0;
@@ -133,12 +124,8 @@ TEST_IMPL(platform_output)
                cgroup_version,
                cgroup_par);
     }
-#endif
 
     err = uv_cpu_info(&cpus, &count);
-#if defined(__CYGWIN__) || defined(__MSYS__)
-    ASSERT_EQ(err, UV_ENOSYS);
-#else
     ASSERT_OK(err);
 
     printf("uv_cpu_info:\n");
@@ -156,7 +143,6 @@ TEST_IMPL(platform_output)
         printf("  times.nice: %llu\n",
                (unsigned long long)cpus[i].cpu_times.nice);
     }
-#endif
     uv_free_cpu_info(cpus, count);
 
     err = uv_interface_addresses(&interfaces, &count);
@@ -203,35 +189,23 @@ TEST_IMPL(platform_output)
     ASSERT_OK(err);
 
     err = uv_os_get_group(&grp, pwd.gid);
-#if defined(_WIN32)
-    ASSERT_EQ(err, UV_ENOTSUP);
-    ASSERT_EQ(pwd.uid, (unsigned long)-1);
-    ASSERT_EQ(pwd.gid, (unsigned long)-1);
-    (void)member;
-    grp.groupname = "ENOTSUP";
-#else
     ASSERT_OK(err);
     ASSERT_EQ(pwd.gid, grp.gid);
-#endif
 
     printf("uv_os_get_passwd:\n");
     printf("  euid: %ld\n", pwd.uid);
     printf("  gid: %ld (%s)\n", pwd.gid, grp.groupname);
-#if !defined(_WIN32)
     printf("    members: [");
     for (member = grp.members; *member != NULL; member++) {
         printf(" %s", *member);
     }
     printf(" ]\n");
-#endif
     printf("  username: %s\n", pwd.username);
     if (pwd.shell != NULL) /* Not set on Windows */
         printf("  shell: %s\n", pwd.shell);
     printf("  home directory: %s\n", pwd.homedir);
     uv_os_free_passwd(&pwd);
-#if !defined(_WIN32)
     uv_os_free_group(&grp);
-#endif
 
     pid = uv_os_getpid();
     ASSERT_GT(pid, 0);

@@ -21,18 +21,16 @@
 
 
 /* This test does not pretend to be cross-platform. */
-#ifndef _WIN32
+#include "task.h"
+#include "uv.h"
 
-#    include "task.h"
-#    include "uv.h"
-
-#    include <errno.h>
-#    include <signal.h>
-#    include <stdarg.h>
-#    include <stdio.h>
-#    include <stdlib.h>
-#    include <string.h>
-#    include <unistd.h>
+#include <errno.h>
+#include <signal.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 /* The value of NUM_SIGNAL_HANDLING_THREADS is not arbitrary; it needs to be a
  * multiple of three for reasons that will become clear when you scroll down.
@@ -40,8 +38,8 @@
  * to be divisible by three in order for the numbers in the final check to
  * match up.
  */
-#    define NUM_SIGNAL_HANDLING_THREADS 24
-#    define NUM_LOOP_CREATING_THREADS 10
+#define NUM_SIGNAL_HANDLING_THREADS 24
+#define NUM_LOOP_CREATING_THREADS 10
 
 enum signal_action
 {
@@ -207,23 +205,16 @@ static void loop_creating_worker(void* context)
 
 TEST_IMPL(signal_multiple_loops)
 {
-#    if defined(__CYGWIN__) || defined(__MSYS__)
-    /* FIXME: This test needs more investigation.  Somehow the `read` in
-       uv__signal_lock fails spuriously with EACCES or even EAGAIN even
-       though it is supposed to be blocking.  Also the test hangs during
-       thread setup occasionally.  */
-    RETURN_SKIP("FIXME: This test needs more investigation on Cygwin");
-#    endif
-#    if defined(__ASAN__) || defined(__MSAN__)
+#if defined(__ASAN__) || defined(__MSAN__)
     /* See https://github.com/libuv/libuv/issues/3956 */
     RETURN_SKIP("Test is too slow to run under ASan or MSan");
-#    endif
-#    if defined(__TSAN__)
+#endif
+#if defined(__TSAN__)
     /* ThreadSanitizer complains - likely legitimately - about data races
      * in uv__signal_compare() in src/unix/signal.c but that's pre-existing.
      */
     RETURN_SKIP("Fix test under ThreadSanitizer");
-#    endif
+#endif
     uv_thread_t loop_creating_threads[NUM_LOOP_CREATING_THREADS];
     uv_thread_t signal_handling_threads[NUM_SIGNAL_HANDLING_THREADS];
     enum signal_action action;
@@ -319,9 +310,3 @@ TEST_IMPL(signal_multiple_loops)
     MAKE_VALGRIND_HAPPY(uv_default_loop());
     return 0;
 }
-
-#else
-
-typedef int file_has_no_tests; /* ISO C forbids an empty translation unit. */
-
-#endif /* !_WIN32 */

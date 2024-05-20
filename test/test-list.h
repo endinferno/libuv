@@ -48,31 +48,6 @@ TEST_DECLARE(semaphore_1)
 TEST_DECLARE(semaphore_2)
 TEST_DECLARE(semaphore_3)
 TEST_DECLARE(tty)
-#ifdef _WIN32
-TEST_DECLARE(tty_raw)
-TEST_DECLARE(tty_empty_write)
-TEST_DECLARE(tty_large_write)
-TEST_DECLARE(tty_raw_cancel)
-TEST_DECLARE(tty_duplicate_vt100_fn_key)
-TEST_DECLARE(tty_duplicate_alt_modifier_key)
-TEST_DECLARE(tty_composing_character)
-TEST_DECLARE(tty_cursor_up)
-TEST_DECLARE(tty_cursor_down)
-TEST_DECLARE(tty_cursor_forward)
-TEST_DECLARE(tty_cursor_back)
-TEST_DECLARE(tty_cursor_next_line)
-TEST_DECLARE(tty_cursor_previous_line)
-TEST_DECLARE(tty_cursor_horizontal_move_absolute)
-TEST_DECLARE(tty_cursor_move_absolute)
-TEST_DECLARE(tty_hide_show_cursor)
-TEST_DECLARE(tty_set_cursor_shape)
-TEST_DECLARE(tty_erase)
-TEST_DECLARE(tty_erase_line)
-TEST_DECLARE(tty_set_style)
-TEST_DECLARE(tty_save_restore_cursor_position)
-TEST_DECLARE(tty_full_reset)
-TEST_DECLARE(tty_escape_sequence_processing)
-#endif
 TEST_DECLARE(tty_file)
 TEST_DECLARE(tty_pty)
 TEST_DECLARE(stdio_over_pipes)
@@ -83,10 +58,8 @@ TEST_DECLARE(connect_unspecified)
 TEST_DECLARE(ipc_heavy_traffic_deadlock_bug)
 TEST_DECLARE(ipc_listen_before_write)
 TEST_DECLARE(ipc_listen_after_write)
-#ifndef _WIN32
 TEST_DECLARE(ipc_send_recv_pipe)
 TEST_DECLARE(ipc_send_recv_pipe_inprocess)
-#endif
 TEST_DECLARE(ipc_send_recv_tcp)
 TEST_DECLARE(ipc_send_recv_tcp_inprocess)
 TEST_DECLARE(ipc_tcp_connection)
@@ -100,9 +73,7 @@ TEST_DECLARE(pipe_ping_pong)
 TEST_DECLARE(pipe_ping_pong_vec)
 TEST_DECLARE(delayed_accept)
 TEST_DECLARE(multiple_listen)
-#ifndef _WIN32
 TEST_DECLARE(tcp_write_after_connect)
-#endif
 TEST_DECLARE(tcp_writealot)
 TEST_DECLARE(tcp_write_fail)
 TEST_DECLARE(tcp_try_write)
@@ -144,10 +115,8 @@ TEST_DECLARE(tcp_create_early)
 TEST_DECLARE(tcp_create_early_bad_bind)
 TEST_DECLARE(tcp_create_early_bad_domain)
 TEST_DECLARE(tcp_create_early_accept)
-#ifndef _WIN32
 TEST_DECLARE(tcp_close_accept)
 TEST_DECLARE(tcp_oob)
-#endif
 TEST_DECLARE(tcp_flags)
 TEST_DECLARE(tcp_write_to_half_open_connection)
 TEST_DECLARE(tcp_unexpected_read)
@@ -189,9 +158,7 @@ TEST_DECLARE(udp_open_twice)
 TEST_DECLARE(udp_open_bound)
 TEST_DECLARE(udp_open_connect)
 TEST_DECLARE(udp_recv_in_a_row)
-#ifndef _WIN32
 TEST_DECLARE(udp_send_unix)
-#endif
 TEST_DECLARE(udp_sendmmsg_error)
 TEST_DECLARE(udp_try_send)
 TEST_DECLARE(pipe_bind_error_addrinuse)
@@ -266,9 +233,7 @@ TEST_DECLARE(pipe_ref)
 TEST_DECLARE(pipe_ref2)
 TEST_DECLARE(pipe_ref3)
 TEST_DECLARE(pipe_ref4)
-#ifndef _WIN32
 TEST_DECLARE(pipe_close_stdout_read_stdin)
-#endif
 TEST_DECLARE(pipe_set_non_blocking)
 TEST_DECLARE(pipe_set_chmod)
 TEST_DECLARE(process_ref)
@@ -310,9 +275,7 @@ TEST_DECLARE(fail_always)
 TEST_DECLARE(pass_always)
 TEST_DECLARE(socket_buffer_size)
 TEST_DECLARE(spawn_fails)
-#ifndef _WIN32
 TEST_DECLARE(spawn_fails_check_for_waitpid_cleanup)
-#endif
 TEST_DECLARE(spawn_empty_env)
 TEST_DECLARE(spawn_exit_code)
 TEST_DECLARE(spawn_stdout)
@@ -364,24 +327,12 @@ TEST_DECLARE(fs_access)
 TEST_DECLARE(fs_chmod)
 TEST_DECLARE(fs_copyfile)
 TEST_DECLARE(fs_unlink_readonly)
-#ifdef _WIN32
-TEST_DECLARE(fs_unlink_archive_readonly)
-#endif
 TEST_DECLARE(fs_chown)
 TEST_DECLARE(fs_link)
 TEST_DECLARE(fs_readlink)
 TEST_DECLARE(fs_realpath)
 TEST_DECLARE(fs_symlink)
 TEST_DECLARE(fs_symlink_dir)
-#ifdef _WIN32
-TEST_DECLARE(fs_symlink_junction)
-TEST_DECLARE(fs_non_symlink_reparse_point)
-TEST_DECLARE(fs_lstat_windows_store_apps)
-TEST_DECLARE(fs_open_flags)
-#endif
-#if defined(_WIN32) && !defined(USING_UV_SHARED)
-TEST_DECLARE(fs_fd_hash)
-#endif
 TEST_DECLARE(fs_utime)
 TEST_DECLARE(fs_utime_round)
 TEST_DECLARE(fs_futime)
@@ -394,16 +345,10 @@ TEST_DECLARE(fs_read_bufs)
 TEST_DECLARE(fs_read_file_eof)
 TEST_DECLARE(fs_event_watch_dir)
 TEST_DECLARE(fs_event_watch_dir_recursive)
-#ifdef _WIN32
-TEST_DECLARE(fs_event_watch_dir_short_path)
-#endif
 TEST_DECLARE(fs_event_watch_file)
 TEST_DECLARE(fs_event_watch_file_exact_path)
 TEST_DECLARE(fs_event_watch_file_twice)
 TEST_DECLARE(fs_event_watch_file_current_dir)
-#ifdef _WIN32
-TEST_DECLARE(fs_event_watch_file_root_dir)
-#endif
 TEST_DECLARE(fs_event_watch_invalid_path)
 TEST_DECLARE(fs_event_no_callback_after_close)
 TEST_DECLARE(fs_event_no_callback_on_close)
@@ -436,16 +381,6 @@ TEST_DECLARE(fs_partial_write)
 TEST_DECLARE(fs_file_pos_after_op_with_offset)
 TEST_DECLARE(fs_null_req)
 TEST_DECLARE(fs_read_dir)
-#ifdef _WIN32
-TEST_DECLARE(fs_file_pos_write)
-TEST_DECLARE(fs_file_pos_append)
-TEST_DECLARE(fs_exclusive_sharing_mode)
-TEST_DECLARE(fs_file_flag_no_buffering)
-TEST_DECLARE(fs_open_readonly_acl)
-TEST_DECLARE(fs_fchmod_archive_readonly)
-TEST_DECLARE(fs_invalid_mkdir_name)
-TEST_DECLARE(fs_wtf)
-#endif
 TEST_DECLARE(fs_get_system_error)
 TEST_DECLARE(strscpy)
 TEST_DECLARE(strtok)
@@ -471,20 +406,12 @@ TEST_DECLARE(thread_equal)
 TEST_DECLARE(thread_affinity)
 TEST_DECLARE(thread_priority)
 TEST_DECLARE(dlerror)
-#if (defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))) && \
-    !defined(__sun)
 TEST_DECLARE(poll_oob)
-#endif
 TEST_DECLARE(poll_duplex)
 TEST_DECLARE(poll_unidirectional)
 TEST_DECLARE(poll_close)
 TEST_DECLARE(poll_bad_fdtype)
-#ifdef __linux__
 TEST_DECLARE(poll_nested_epoll)
-#endif
-#ifdef UV_HAVE_KQUEUE
-TEST_DECLARE(poll_nested_kqueue)
-#endif
 TEST_DECLARE(poll_multiple_handles)
 
 TEST_DECLARE(ip4_addr)
@@ -496,22 +423,6 @@ TEST_DECLARE(poll_closesocket)
 TEST_DECLARE(close_fd)
 TEST_DECLARE(closed_fd_events)
 TEST_DECLARE(spawn_fs_open)
-#ifdef _WIN32
-TEST_DECLARE(spawn_detect_pipe_name_collisions_on_windows)
-#    if !defined(USING_UV_SHARED)
-TEST_DECLARE(argument_escaping)
-TEST_DECLARE(environment_creation)
-#    endif
-TEST_DECLARE(listen_with_simultaneous_accepts)
-TEST_DECLARE(listen_no_simultaneous_accepts)
-TEST_DECLARE(fs_stat_root)
-TEST_DECLARE(spawn_with_an_odd_path)
-TEST_DECLARE(spawn_no_path)
-TEST_DECLARE(spawn_no_ext)
-TEST_DECLARE(spawn_path_no_ext)
-TEST_DECLARE(ipc_listen_after_bind_twice)
-TEST_DECLARE(win32_signum_number)
-#else
 TEST_DECLARE(emfile)
 TEST_DECLARE(spawn_setuid_setgid)
 TEST_DECLARE(we_get_signal)
@@ -521,11 +432,6 @@ TEST_DECLARE(we_get_signals_mixed)
 TEST_DECLARE(signal_multiple_loops)
 TEST_DECLARE(signal_pending_on_close)
 TEST_DECLARE(signal_close_loop_alive)
-#endif
-#ifdef __APPLE__
-TEST_DECLARE(osx_select)
-TEST_DECLARE(osx_select_many_fds)
-#endif
 HELPER_DECLARE(tcp4_echo_server)
 HELPER_DECLARE(tcp6_echo_server)
 HELPER_DECLARE(udp4_echo_server)
@@ -544,24 +450,16 @@ TEST_DECLARE(not_writable_after_shutdown)
 TEST_DECLARE(not_readable_nor_writable_on_read_error)
 TEST_DECLARE(readable_on_eof)
 
-#ifndef _WIN32
 TEST_DECLARE(fork_timer)
 TEST_DECLARE(fork_socketpair)
 TEST_DECLARE(fork_socketpair_started)
 TEST_DECLARE(fork_signal_to_child)
 TEST_DECLARE(fork_signal_to_child_closed)
 TEST_DECLARE(fork_close_signal_in_child)
-#    ifndef __APPLE__ /* This is forbidden in a fork child: The process has \
-                         forked and you cannot use this CoreFoundation                                     \
-                         functionality safely. You MUST exec(). */
 TEST_DECLARE(fork_fs_events_child)
 TEST_DECLARE(fork_fs_events_child_dir)
 TEST_DECLARE(fork_fs_events_file_parent_child)
-#    endif
-#    ifndef __MVS__
 TEST_DECLARE(fork_threadpool_queue_work_simple)
-#    endif
-#endif
 
 TEST_DECLARE(iouring_pollhup)
 
@@ -611,38 +509,11 @@ TEST_ENTRY(pipe_connect_to_file)
 TEST_ENTRY(pipe_connect_on_prepare)
 
 TEST_ENTRY(pipe_server_close)
-#ifndef _WIN32
 TEST_ENTRY(pipe_close_stdout_read_stdin)
-#endif
 /* Seems to be either about 0.5s or 5s, depending on the OS. */
 TEST_ENTRY_CUSTOM(pipe_set_non_blocking, 0, 0, 20000)
 TEST_ENTRY(pipe_set_chmod)
 TEST_ENTRY(tty)
-#ifdef _WIN32
-TEST_ENTRY(tty_raw)
-TEST_ENTRY(tty_empty_write)
-TEST_ENTRY(tty_large_write)
-TEST_ENTRY(tty_raw_cancel)
-TEST_ENTRY(tty_duplicate_vt100_fn_key)
-TEST_ENTRY(tty_duplicate_alt_modifier_key)
-TEST_ENTRY(tty_composing_character)
-TEST_ENTRY(tty_cursor_up)
-TEST_ENTRY(tty_cursor_down)
-TEST_ENTRY(tty_cursor_forward)
-TEST_ENTRY(tty_cursor_back)
-TEST_ENTRY(tty_cursor_next_line)
-TEST_ENTRY(tty_cursor_previous_line)
-TEST_ENTRY(tty_cursor_horizontal_move_absolute)
-TEST_ENTRY(tty_cursor_move_absolute)
-TEST_ENTRY(tty_hide_show_cursor)
-TEST_ENTRY(tty_set_cursor_shape)
-TEST_ENTRY(tty_erase)
-TEST_ENTRY(tty_erase_line)
-TEST_ENTRY(tty_set_style)
-TEST_ENTRY(tty_save_restore_cursor_position)
-TEST_ENTRY(tty_full_reset)
-TEST_ENTRY(tty_escape_sequence_processing)
-#endif
 TEST_ENTRY(tty_file)
 TEST_ENTRY(tty_pty)
 TEST_ENTRY(stdio_over_pipes)
@@ -653,10 +524,8 @@ TEST_ENTRY(connect_unspecified)
 TEST_ENTRY(ipc_heavy_traffic_deadlock_bug)
 TEST_ENTRY(ipc_listen_before_write)
 TEST_ENTRY(ipc_listen_after_write)
-#ifndef _WIN32
 TEST_ENTRY(ipc_send_recv_pipe)
 TEST_ENTRY(ipc_send_recv_pipe_inprocess)
-#endif
 TEST_ENTRY(ipc_send_recv_tcp)
 TEST_ENTRY(ipc_send_recv_tcp_inprocess)
 TEST_ENTRY(ipc_tcp_connection)
@@ -685,15 +554,9 @@ TEST_HELPER(pipe_ping_pong_vec, pipe_echo_server)
 TEST_ENTRY(delayed_accept)
 TEST_ENTRY(multiple_listen)
 
-#ifndef _WIN32
 TEST_ENTRY(tcp_write_after_connect)
-#endif
 
-#ifdef __MVS__
-TEST_ENTRY_CUSTOM(tcp_writealot, 0, 0, 20000)
-#else
 TEST_ENTRY(tcp_writealot)
-#endif
 TEST_HELPER(tcp_writealot, tcp4_echo_server)
 
 TEST_ENTRY(tcp_write_fail)
@@ -752,10 +615,8 @@ TEST_ENTRY(tcp_create_early)
 TEST_ENTRY(tcp_create_early_bad_bind)
 TEST_ENTRY(tcp_create_early_bad_domain)
 TEST_ENTRY(tcp_create_early_accept)
-#ifndef _WIN32
 TEST_ENTRY(tcp_close_accept)
 TEST_ENTRY(tcp_oob)
-#endif
 TEST_ENTRY(tcp_flags)
 TEST_ENTRY(tcp_write_to_half_open_connection)
 TEST_ENTRY(tcp_unexpected_read)
@@ -806,9 +667,7 @@ TEST_ENTRY(udp_open)
 TEST_ENTRY(udp_open_twice)
 TEST_ENTRY(udp_open_bound)
 TEST_ENTRY(udp_open_connect)
-#ifndef _WIN32
 TEST_ENTRY(udp_send_unix)
-#endif
 
 TEST_ENTRY(pipe_bind_error_addrinuse)
 TEST_ENTRY(pipe_bind_error_addrnotavail)
@@ -961,25 +820,15 @@ TEST_ENTRY(poll_duplex)
 TEST_ENTRY(poll_unidirectional)
 TEST_ENTRY(poll_close)
 TEST_ENTRY(poll_bad_fdtype)
-#if (defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))) && \
-    !defined(__sun)
 TEST_ENTRY(poll_oob)
-#endif
 
-#ifdef __linux__
 TEST_ENTRY(poll_nested_epoll)
-#endif
-#ifdef UV_HAVE_KQUEUE
-TEST_ENTRY(poll_nested_kqueue)
-#endif
 TEST_ENTRY(poll_multiple_handles)
 
 TEST_ENTRY(socket_buffer_size)
 
 TEST_ENTRY(spawn_fails)
-#ifndef _WIN32
 TEST_ENTRY(spawn_fails_check_for_waitpid_cleanup)
-#endif
 TEST_ENTRY(spawn_empty_env)
 TEST_ENTRY(spawn_exit_code)
 TEST_ENTRY(spawn_stdout)
@@ -1020,22 +869,6 @@ TEST_ENTRY(poll_closesocket)
 TEST_ENTRY(close_fd)
 TEST_ENTRY(closed_fd_events)
 TEST_ENTRY(spawn_fs_open)
-#ifdef _WIN32
-TEST_ENTRY(spawn_detect_pipe_name_collisions_on_windows)
-#    if !defined(USING_UV_SHARED)
-TEST_ENTRY(argument_escaping)
-TEST_ENTRY(environment_creation)
-#    endif
-TEST_ENTRY(listen_with_simultaneous_accepts)
-TEST_ENTRY(listen_no_simultaneous_accepts)
-TEST_ENTRY(fs_stat_root)
-TEST_ENTRY(spawn_with_an_odd_path)
-TEST_ENTRY(spawn_no_path)
-TEST_ENTRY(spawn_no_ext)
-TEST_ENTRY(spawn_path_no_ext)
-TEST_ENTRY(ipc_listen_after_bind_twice)
-TEST_ENTRY(win32_signum_number)
-#else
 TEST_ENTRY(emfile)
 TEST_ENTRY(spawn_setuid_setgid)
 TEST_ENTRY(we_get_signal)
@@ -1045,12 +878,6 @@ TEST_ENTRY(we_get_signals_mixed)
 TEST_ENTRY(signal_multiple_loops)
 TEST_ENTRY(signal_pending_on_close)
 TEST_ENTRY(signal_close_loop_alive)
-#endif
-
-#ifdef __APPLE__
-TEST_ENTRY(osx_select)
-TEST_ENTRY(osx_select_many_fds)
-#endif
 
 TEST_ENTRY(fs_file_noent)
 TEST_ENTRY(fs_file_nametoolong)
@@ -1069,9 +896,6 @@ TEST_ENTRY(fs_access)
 TEST_ENTRY(fs_chmod)
 TEST_ENTRY(fs_copyfile)
 TEST_ENTRY(fs_unlink_readonly)
-#ifdef _WIN32
-TEST_ENTRY(fs_unlink_archive_readonly)
-#endif
 TEST_ENTRY(fs_chown)
 TEST_ENTRY(fs_link)
 TEST_ENTRY(fs_utime)
@@ -1082,15 +906,6 @@ TEST_ENTRY(fs_readlink)
 TEST_ENTRY(fs_realpath)
 TEST_ENTRY(fs_symlink)
 TEST_ENTRY(fs_symlink_dir)
-#ifdef _WIN32
-TEST_ENTRY(fs_symlink_junction)
-TEST_ENTRY(fs_non_symlink_reparse_point)
-TEST_ENTRY(fs_lstat_windows_store_apps)
-TEST_ENTRY(fs_open_flags)
-#endif
-#if defined(_WIN32) && !defined(USING_UV_SHARED)
-TEST_ENTRY(fs_fd_hash)
-#endif
 TEST_ENTRY(fs_statfs)
 TEST_ENTRY(fs_stat_batch_multiple)
 TEST_ENTRY(fs_stat_missing_path)
@@ -1099,16 +914,10 @@ TEST_ENTRY(fs_read_file_eof)
 TEST_ENTRY(fs_file_open_append)
 TEST_ENTRY(fs_event_watch_dir)
 TEST_ENTRY(fs_event_watch_dir_recursive)
-#ifdef _WIN32
-TEST_ENTRY(fs_event_watch_dir_short_path)
-#endif
 TEST_ENTRY(fs_event_watch_file)
 TEST_ENTRY(fs_event_watch_file_exact_path)
 TEST_ENTRY(fs_event_watch_file_twice)
 TEST_ENTRY(fs_event_watch_file_current_dir)
-#ifdef _WIN32
-TEST_ENTRY(fs_event_watch_file_root_dir)
-#endif
 TEST_ENTRY(fs_event_watch_invalid_path)
 TEST_ENTRY(fs_event_no_callback_after_close)
 TEST_ENTRY(fs_event_no_callback_on_close)
@@ -1139,16 +948,6 @@ TEST_ENTRY(fs_read_write_null_arguments)
 TEST_ENTRY(fs_file_pos_after_op_with_offset)
 TEST_ENTRY(fs_null_req)
 TEST_ENTRY(fs_read_dir)
-#ifdef _WIN32
-TEST_ENTRY(fs_file_pos_write)
-TEST_ENTRY(fs_file_pos_append)
-TEST_ENTRY(fs_exclusive_sharing_mode)
-TEST_ENTRY(fs_file_flag_no_buffering)
-TEST_ENTRY(fs_open_readonly_acl)
-TEST_ENTRY(fs_fchmod_archive_readonly)
-TEST_ENTRY(fs_invalid_mkdir_name)
-TEST_ENTRY(fs_wtf)
-#endif
 TEST_ENTRY(fs_get_system_error)
 TEST_ENTRY(get_osfhandle_valid_handle)
 TEST_ENTRY(open_osfhandle_valid_handle)
@@ -1189,22 +988,16 @@ TEST_ENTRY(handle_type_name)
 TEST_ENTRY(req_type_name)
 TEST_ENTRY(getters_setters)
 
-#ifndef _WIN32
 TEST_ENTRY(fork_timer)
 TEST_ENTRY(fork_socketpair)
 TEST_ENTRY(fork_socketpair_started)
 TEST_ENTRY(fork_signal_to_child)
 TEST_ENTRY(fork_signal_to_child_closed)
 TEST_ENTRY(fork_close_signal_in_child)
-#    ifndef __APPLE__
 TEST_ENTRY(fork_fs_events_child)
 TEST_ENTRY(fork_fs_events_child_dir)
 TEST_ENTRY(fork_fs_events_file_parent_child)
-#    endif
-#    ifndef __MVS__
 TEST_ENTRY(fork_threadpool_queue_work_simple)
-#    endif
-#endif
 
 TEST_ENTRY(iouring_pollhup)
 
@@ -1213,9 +1006,7 @@ TEST_ENTRY(utf8_decode1_overrun)
 TEST_ENTRY(uname)
 
 /* Doesn't work on z/OS because that platform uses EBCDIC, not ASCII. */
-#ifndef __MVS__
 TEST_ENTRY(idna_toascii)
-#endif
 
 TEST_ENTRY(not_writable_after_shutdown)
 TEST_HELPER(not_writable_after_shutdown, tcp4_echo_server)
@@ -1230,9 +1021,4 @@ TEST_ENTRY(metrics_idle_time)
 TEST_ENTRY(metrics_idle_time_thread)
 TEST_ENTRY(metrics_idle_time_zero)
 
-#if 0
-  /* These are for testing the test runner. */
-  TEST_ENTRY  (fail_always)
-  TEST_ENTRY  (pass_always)
-#endif
 TASK_LIST_END

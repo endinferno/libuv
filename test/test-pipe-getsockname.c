@@ -25,11 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef _WIN32
-#    include <unistd.h> /* close */
-#else
-#    include <fcntl.h>
-#endif
+#include <unistd.h> /* close */
 
 static uv_pipe_t pipe_client;
 static uv_pipe_t pipe_server;
@@ -92,9 +88,6 @@ static void pipe_server_connection_cb(uv_stream_t* handle, int status)
 
 TEST_IMPL(pipe_getsockname)
 {
-#if defined(NO_SELF_CONNECT)
-    RETURN_SKIP(NO_SELF_CONNECT);
-#endif
     uv_loop_t* loop;
     char namebuf[256];
     char buf[1024];
@@ -125,9 +118,7 @@ TEST_IMPL(pipe_getsockname)
     r = uv_pipe_bind2(&pipe_server, namebuf, namelen, 0);
     ASSERT_OK(r);
 
-#ifndef _WIN32
     ASSERT_STR_EQ(pipe_server.pipe_fname, TEST_PIPENAME);
-#endif
 
     len = sizeof buf;
     r = uv_pipe_getsockname(&pipe_server, buf, &len);
@@ -188,7 +179,6 @@ TEST_IMPL(pipe_getsockname_abstract)
 {
     /* TODO(bnoordhuis) Use unique name, susceptible to concurrent test runs. */
     static const char name[] = "\0" TEST_PIPENAME;
-#if defined(__linux__)
     char buf[256];
     size_t buflen;
 
@@ -213,83 +203,10 @@ TEST_IMPL(pipe_getsockname_abstract)
     ASSERT_EQ(2, pipe_close_cb_called);
     MAKE_VALGRIND_HAPPY(uv_default_loop());
     return 0;
-#else
-    /* On other platforms it should simply fail with UV_EINVAL. */
-    ASSERT_OK(uv_pipe_init(uv_default_loop(), &pipe_server, 0));
-    ASSERT_EQ(UV_EINVAL, uv_pipe_bind2(&pipe_server, name, sizeof(name), 0));
-    ASSERT_OK(uv_pipe_init(uv_default_loop(), &pipe_client, 0));
-    uv_close((uv_handle_t*)&pipe_server, pipe_close_cb);
-    ASSERT_EQ(UV_EINVAL,
-              uv_pipe_connect2(&connect_req,
-                               &pipe_client,
-                               name,
-                               sizeof(name),
-                               0,
-                               (uv_connect_cb)abort));
-    uv_close((uv_handle_t*)&pipe_client, pipe_close_cb);
-    ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
-    ASSERT_EQ(2, pipe_close_cb_called);
-    MAKE_VALGRIND_HAPPY(uv_default_loop());
-    return 0;
-#endif
 }
 
 TEST_IMPL(pipe_getsockname_blocking)
 {
-#ifdef _WIN32
-    HANDLE readh, writeh;
-    int readfd;
-    char buf1[1024], buf2[1024];
-    size_t len1, len2;
-    int r;
-
-    r = CreatePipe(&readh, &writeh, NULL, 65536);
-    ASSERT(r);
-
-    r = uv_pipe_init(uv_default_loop(), &pipe_client, 0);
-    ASSERT_OK(r);
-    readfd = _open_osfhandle((intptr_t)readh, _O_RDONLY);
-    ASSERT_NE(r, -1);
-    r = uv_pipe_open(&pipe_client, readfd);
-    ASSERT_OK(r);
-    r = uv_read_start(
-        (uv_stream_t*)&pipe_client, (uv_alloc_cb)abort, (uv_read_cb)abort);
-    ASSERT_OK(r);
-    Sleep(100);
-    r = uv_read_stop((uv_stream_t*)&pipe_client);
-    ASSERT_OK(r);
-
-    len1 = sizeof buf1;
-    r = uv_pipe_getsockname(&pipe_client, buf1, &len1);
-    ASSERT_OK(r);
-    ASSERT_OK(len1); /* It's an annonymous pipe. */
-
-    r = uv_read_start(
-        (uv_stream_t*)&pipe_client, (uv_alloc_cb)abort, (uv_read_cb)abort);
-    ASSERT_OK(r);
-    Sleep(100);
-
-    len2 = sizeof buf2;
-    r = uv_pipe_getsockname(&pipe_client, buf2, &len2);
-    ASSERT_OK(r);
-    ASSERT_OK(len2); /* It's an annonymous pipe. */
-
-    r = uv_read_stop((uv_stream_t*)&pipe_client);
-    ASSERT_OK(r);
-
-    ASSERT_EQ(len1, len2);
-    ASSERT_OK(memcmp(buf1, buf2, len1));
-
-    pipe_close_cb_called = 0;
-    uv_close((uv_handle_t*)&pipe_client, pipe_close_cb);
-
-    uv_run(uv_default_loop(), UV_RUN_DEFAULT);
-
-    ASSERT_EQ(1, pipe_close_cb_called);
-
-    CloseHandle(writeh);
-#endif
-
     MAKE_VALGRIND_HAPPY(uv_default_loop());
     return 0;
 }

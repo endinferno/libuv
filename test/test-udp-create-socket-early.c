@@ -24,11 +24,7 @@
 #include "uv.h"
 #include <string.h>
 
-#ifdef _WIN32
-#    define INVALID_FD (INVALID_HANDLE_VALUE)
-#else
-#    define INVALID_FD (-1)
-#endif
+#define INVALID_FD (-1)
 
 
 TEST_IMPL(udp_create_early)
@@ -48,15 +44,11 @@ TEST_IMPL(udp_create_early)
     ASSERT_OK(r);
 
     /* Windows returns WSAEINVAL if the socket is not bound */
-#ifndef _WIN32
     ASSERT_NE(fd, INVALID_FD);
     namelen = sizeof sockname;
     r = uv_udp_getsockname(&client, (struct sockaddr*)&sockname, &namelen);
     ASSERT_OK(r);
     ASSERT_EQ(sockname.sin_family, AF_INET);
-#else
-    ASSERT_PTR_NE(fd, INVALID_FD);
-#endif
 
     r = uv_udp_bind(&client, (const struct sockaddr*)&addr, 0);
     ASSERT_OK(r);
@@ -94,7 +86,6 @@ TEST_IMPL(udp_create_early_bad_bind)
     ASSERT_OK(r);
 
     /* Windows returns WSAEINVAL if the socket is not bound */
-#ifndef _WIN32
     ASSERT_NE(fd, INVALID_FD);
     {
         int namelen;
@@ -104,16 +95,9 @@ TEST_IMPL(udp_create_early_bad_bind)
         ASSERT_OK(r);
         ASSERT_EQ(sockname.sin6_family, AF_INET6);
     }
-#else
-    ASSERT_PTR_NE(fd, INVALID_FD);
-#endif
 
     r = uv_udp_bind(&client, (const struct sockaddr*)&addr, 0);
-#if !defined(_WIN32) && !defined(__CYGWIN__) && !defined(__MSYS__)
     ASSERT_EQ(r, UV_EINVAL);
-#else
-    ASSERT_EQ(r, UV_EFAULT);
-#endif
 
     uv_close((uv_handle_t*)&client, NULL);
     uv_run(uv_default_loop(), UV_RUN_DEFAULT);

@@ -24,8 +24,6 @@
 
 #include <string.h>
 
-#ifndef NO_CPU_AFFINITY
-
 static void check_affinity(void* arg)
 {
     int r;
@@ -59,12 +57,7 @@ TEST_IMPL(thread_affinity)
     int i;
     uv_thread_t threads[3];
 
-#    ifdef _WIN32
-    /* uv_thread_self isn't defined for the main thread on Windows */
-    threads[0] = GetCurrentThread();
-#    else
     threads[0] = uv_thread_self();
-#    endif
     cpumasksize = uv_cpumask_size();
     ASSERT_GT(cpumasksize, 0);
 
@@ -87,21 +80,10 @@ TEST_IMPL(thread_affinity)
     cpumask[t2first + 0] = 1;
     cpumask[t1first + (ncpus >= 2)] = 1;
     cpumask[t2second + (ncpus >= 2)] = 1;
-#    ifdef __linux__
     cpumask[t1second + 2] = 1;
     cpumask[t2first + 2] = 1;
     cpumask[t1first + 3] = 1;
     cpumask[t2second + 3] = 1;
-#    else
-    if (ncpus >= 3) {
-        cpumask[t1second + 2] = 1;
-        cpumask[t2first + 2] = 1;
-    }
-    if (ncpus >= 4) {
-        cpumask[t1first + 3] = 1;
-        cpumask[t2second + 3] = 1;
-    }
-#    endif
 
     ASSERT_OK(uv_thread_create(threads + 1, check_affinity, &cpumask[t1first]));
     ASSERT_OK(uv_thread_create(threads + 2, check_affinity, &cpumask[t2first]));
@@ -140,15 +122,3 @@ TEST_IMPL(thread_affinity)
 
     return 0;
 }
-
-#else
-
-TEST_IMPL(thread_affinity)
-{
-    int cpumasksize;
-    cpumasksize = uv_cpumask_size();
-    ASSERT_EQ(cpumasksize, UV_ENOTSUP);
-    return 0;
-}
-
-#endif

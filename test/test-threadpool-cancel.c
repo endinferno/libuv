@@ -22,10 +22,6 @@
 #include "task.h"
 #include "uv.h"
 
-#ifdef _WIN32
-#    define putenv _putenv
-#endif
-
 #define INIT_CANCEL_INFO(ci, what)        \
     do {                                  \
         (ci)->reqs = (what);              \
@@ -101,7 +97,6 @@ static int known_broken(uv_req_t* req)
     if (req->type != UV_FS)
         return 0;
 
-#ifdef __linux__
     /* TODO(bnoordhuis) make cancellation work with io_uring */
     switch (((uv_fs_t*)req)->fs_type) {
     case UV_FS_CLOSE:
@@ -120,7 +115,6 @@ static int known_broken(uv_req_t* req)
     case UV_FS_UNLINK: return 1;
     default: /* Squelch -Wswitch warnings. */ break;
     }
-#endif
 
     return 0;
 }

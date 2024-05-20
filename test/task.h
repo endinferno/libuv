@@ -31,10 +31,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if !defined(_WIN32)
-#    include <sys/resource.h> /* setrlimit() */
-#    include <sys/time.h>
-#endif
+#include <sys/resource.h> /* setrlimit() */
+#include <sys/time.h>
 
 #ifdef __clang__
 #    pragma clang diagnostic ignored "-Wvariadic-macros"
@@ -49,25 +47,9 @@
 #define TEST_PORT_2 9124
 #define TEST_PORT_3 9125
 
-#ifdef _WIN32
-#    define TEST_PIPENAME "\\\\.\\pipe\\uv-test"
-#    define TEST_PIPENAME_2 "\\\\.\\pipe\\uv-test2"
-#    define TEST_PIPENAME_3 "\\\\.\\pipe\\uv-test3"
-#else
-#    define TEST_PIPENAME "/tmp/uv-test-sock"
-#    define TEST_PIPENAME_2 "/tmp/uv-test-sock2"
-#    define TEST_PIPENAME_3 "/tmp/uv-test-sock3"
-#endif
-
-#ifdef _WIN32
-#    include <io.h>
-#    ifndef S_IRUSR
-#        define S_IRUSR _S_IREAD
-#    endif
-#    ifndef S_IWUSR
-#        define S_IWUSR _S_IWRITE
-#    endif
-#endif
+#define TEST_PIPENAME "/tmp/uv-test-sock"
+#define TEST_PIPENAME_2 "/tmp/uv-test-sock2"
+#define TEST_PIPENAME_3 "/tmp/uv-test-sock3"
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
@@ -290,28 +272,14 @@ enum test_status
         return TEST_SKIP;                     \
     } while (0)
 
-#if !defined(_WIN32)
-
-#    define TEST_FILE_LIMIT(num)                               \
-        do {                                                   \
-            struct rlimit lim;                                 \
-            lim.rlim_cur = (num);                              \
-            lim.rlim_max = lim.rlim_cur;                       \
-            if (setrlimit(RLIMIT_NOFILE, &lim))                \
-                RETURN_SKIP("File descriptor limit too low."); \
-        } while (0)
-
-#else /* defined(_WIN32) */
-
-#    define TEST_FILE_LIMIT(num) \
-        do {                     \
-        } while (0)
-
-#endif
-
-#if !defined(snprintf) && defined(_MSC_VER) && _MSC_VER < 1900
-extern int snprintf(char*, size_t, const char*, ...);
-#endif
+#define TEST_FILE_LIMIT(num)                               \
+    do {                                                   \
+        struct rlimit lim;                                 \
+        lim.rlim_cur = (num);                              \
+        lim.rlim_max = lim.rlim_cur;                       \
+        if (setrlimit(RLIMIT_NOFILE, &lim))                \
+            RETURN_SKIP("File descriptor limit too low."); \
+    } while (0)
 
 #if defined(__clang__) || defined(__GNUC__) || defined(__INTEL_COMPILER)
 #    define UNUSED __attribute__((unused))
@@ -355,31 +323,5 @@ UNUSED static int can_ipv6(void)
     uv_free_interface_addresses(addr, count);
     return supported;
 }
-
-#if defined(__CYGWIN__) || defined(__MSYS__) || defined(__PASE__)
-#    define NO_FS_EVENTS "Filesystem watching not supported on this platform."
-#endif
-
-#if defined(__MSYS__)
-#    define NO_SEND_HANDLE_ON_PIPE \
-        "MSYS2 runtime does not support sending handles on pipes."
-#elif defined(__CYGWIN__)
-#    define NO_SEND_HANDLE_ON_PIPE \
-        "Cygwin runtime does not support sending handles on pipes."
-#endif
-
-#if defined(__MSYS__)
-#    define NO_SELF_CONNECT \
-        "MSYS2 runtime hangs on listen+connect in same process."
-#elif defined(__CYGWIN__)
-#    define NO_SELF_CONNECT \
-        "Cygwin runtime hangs on listen+connect in same process."
-#endif
-
-#if !defined(__linux__) &&                                     \
-    !(defined(__FreeBSD__) && __FreeBSD_version >= 1301000) && \
-    !defined(_WIN32)
-#    define NO_CPU_AFFINITY "affinity not supported on this platform."
-#endif
 
 #endif /* TASK_H_ */

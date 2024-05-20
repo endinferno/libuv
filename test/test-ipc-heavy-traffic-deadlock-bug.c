@@ -87,10 +87,8 @@ static void alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf)
     buf->len = (int)suggested_size;
 }
 
-#ifndef _WIN32
-#    include <sys/types.h>
-#    include <unistd.h>
-#endif
+#include <sys/types.h>
+#include <unistd.h>
 
 static void read_cb(uv_stream_t* handle, ssize_t nread, const uv_buf_t* buf)
 {

@@ -34,11 +34,6 @@ TEST_IMPL(env_vars)
     int i, r, envcount, found, found_win_special;
     uv_env_item_t* envitems;
 
-#if defined(_WIN32) && defined(__ASAN__)
-    /* See investigation in https://github.com/libuv/libuv/issues/4338 */
-    RETURN_SKIP("Test does not currently work on Windows under ASAN");
-#endif
-
     /* Reject invalid inputs when setting an environment variable */
     r = uv_os_setenv(NULL, "foo");
     ASSERT_EQ(r, UV_EINVAL);
@@ -110,12 +105,6 @@ TEST_IMPL(env_vars)
     ASSERT_OK(r);
     r = uv_os_setenv(name2, "");
     ASSERT_OK(r);
-#ifdef _WIN32
-    /* Create a special environment variable on Windows in case there are no
-       naturally occurring ones. */
-    r = uv_os_setenv("=Z:", "\\");
-    ASSERT_OK(r);
-#endif
 
     r = uv_os_environ(&envitems, &envcount);
     ASSERT_OK(r);
@@ -138,12 +127,8 @@ TEST_IMPL(env_vars)
     }
 
     ASSERT_EQ(2, found);
-#ifdef _WIN32
-    ASSERT_GT(found_win_special, 0);
-#else
     /* There's no rule saying a key can't start with '='. */
     (void)&found_win_special;
-#endif
 
     uv_os_free_environ(envitems, envcount);
 

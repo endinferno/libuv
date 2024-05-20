@@ -81,10 +81,6 @@ static void connect_cb(uv_connect_t* req, int status)
  */
 TEST_IMPL(tcp_rst)
 {
-#if defined(__OpenBSD__)
-    RETURN_SKIP("Test does not currently work in OpenBSD");
-#endif
-#ifndef _WIN32
     struct sockaddr_in server_addr;
     int r;
 
@@ -107,7 +103,4 @@ TEST_IMPL(tcp_rst)
 
     MAKE_VALGRIND_HAPPY(uv_default_loop());
     return 0;
-#else
-    RETURN_SKIP("Unix only test");
-#endif
 }

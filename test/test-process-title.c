@@ -63,11 +63,6 @@ static void uv_get_process_title_edge_cases(void)
 
 TEST_IMPL(process_title)
 {
-#if defined(__sun) || defined(__CYGWIN__) || defined(__MSYS__) || \
-    defined(__PASE__)
-    RETURN_SKIP("uv_(get|set)_process_title is not implemented.");
-#endif
-
     /* Check for format string vulnerabilities. */
     set_title("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s");
     set_title("new title");
@@ -95,11 +90,6 @@ TEST_IMPL(process_title_big_argv)
     char exepath[1024];
     char jumbo[512];
     char* args[5];
-
-#ifdef _WIN32
-    /* Remove once https://github.com/libuv/libuv/issues/2667 is fixed. */
-    uv_set_process_title("run-tests");
-#endif
 
     exepath_size = sizeof(exepath) - 1;
     ASSERT_OK(uv_exepath(exepath, &exepath_size));

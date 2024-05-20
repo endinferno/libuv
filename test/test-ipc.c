@@ -437,9 +437,6 @@ static int run_ipc_test(const char* helper, uv_read_cb read_cb)
 
 TEST_IMPL(ipc_listen_before_write)
 {
-#if defined(NO_SEND_HANDLE_ON_PIPE)
-    RETURN_SKIP(NO_SEND_HANDLE_ON_PIPE);
-#endif
     int r = run_ipc_test("ipc_helper_listen_before_write", on_read);
     ASSERT_EQ(1, local_conn_accepted);
     ASSERT_EQ(1, remote_conn_accepted);
@@ -451,9 +448,6 @@ TEST_IMPL(ipc_listen_before_write)
 
 TEST_IMPL(ipc_listen_after_write)
 {
-#if defined(NO_SEND_HANDLE_ON_PIPE)
-    RETURN_SKIP(NO_SEND_HANDLE_ON_PIPE);
-#endif
     int r = run_ipc_test("ipc_helper_listen_after_write", on_read);
     ASSERT_EQ(1, local_conn_accepted);
     ASSERT_EQ(1, remote_conn_accepted);
@@ -465,9 +459,6 @@ TEST_IMPL(ipc_listen_after_write)
 
 TEST_IMPL(ipc_tcp_connection)
 {
-#if defined(NO_SEND_HANDLE_ON_PIPE)
-    RETURN_SKIP(NO_SEND_HANDLE_ON_PIPE);
-#endif
     int r = run_ipc_test("ipc_helper_tcp_connection", on_read_connection);
     ASSERT_EQ(1, read_cb_called);
     ASSERT_EQ(1, tcp_write_cb_called);
@@ -475,72 +466,6 @@ TEST_IMPL(ipc_tcp_connection)
     ASSERT_EQ(1, exit_cb_called);
     return r;
 }
-
-
-#ifdef _WIN32
-TEST_IMPL(listen_with_simultaneous_accepts)
-{
-    uv_tcp_t server;
-    int r;
-    struct sockaddr_in addr;
-
-    ASSERT_OK(uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
-
-    r = uv_tcp_init(uv_default_loop(), &server);
-    ASSERT_OK(r);
-
-    r = uv_tcp_bind(&server, (const struct sockaddr*)&addr, 0);
-    ASSERT_OK(r);
-
-    r = uv_tcp_simultaneous_accepts(&server, 1);
-    ASSERT_OK(r);
-
-    r = uv_listen((uv_stream_t*)&server, SOMAXCONN, NULL);
-    ASSERT_OK(r);
-    ASSERT_EQ(32, server.reqs_pending);
-
-    MAKE_VALGRIND_HAPPY(uv_default_loop());
-    return 0;
-}
-
-
-TEST_IMPL(listen_no_simultaneous_accepts)
-{
-    uv_tcp_t server;
-    int r;
-    struct sockaddr_in addr;
-
-    ASSERT_OK(uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
-
-    r = uv_tcp_init(uv_default_loop(), &server);
-    ASSERT_OK(r);
-
-    r = uv_tcp_bind(&server, (const struct sockaddr*)&addr, 0);
-    ASSERT_OK(r);
-
-    r = uv_tcp_simultaneous_accepts(&server, 0);
-    ASSERT_OK(r);
-
-    r = uv_listen((uv_stream_t*)&server, SOMAXCONN, NULL);
-    ASSERT_OK(r);
-    ASSERT_EQ(1, server.reqs_pending);
-
-    MAKE_VALGRIND_HAPPY(uv_default_loop());
-    return 0;
-}
-
-TEST_IMPL(ipc_listen_after_bind_twice)
-{
-#    if defined(NO_SEND_HANDLE_ON_PIPE)
-    RETURN_SKIP(NO_SEND_HANDLE_ON_PIPE);
-#    endif
-    int r =
-        run_ipc_test("ipc_helper_bind_twice", on_read_listen_after_bound_twice);
-    ASSERT_EQ(2, read_cb_called);
-    ASSERT_EQ(1, exit_cb_called);
-    return r;
-}
-#endif
 
 TEST_IMPL(ipc_send_zero)
 {

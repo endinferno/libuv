@@ -20,13 +20,11 @@
  */
 
 /* this test is Unix only */
-#ifndef _WIN32
+#include "task.h"
+#include "uv.h"
 
-#    include "task.h"
-#    include "uv.h"
-
-#    include <stdio.h>
-#    include <string.h>
+#include <stdio.h>
+#include <string.h>
 
 static struct sockaddr_in addr;
 static uv_tcp_t tcp_server;
@@ -194,9 +192,3 @@ TEST_IMPL(tcp_close_accept)
     MAKE_VALGRIND_HAPPY(loop);
     return 0;
 }
-
-#else
-
-typedef int file_has_no_tests; /* ISO C forbids an empty translation unit. */
-
-#endif /* !_WIN32 */

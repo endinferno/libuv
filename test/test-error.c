@@ -21,9 +21,6 @@
 
 #include "task.h"
 #include "uv.h"
-#if defined(_WIN32)
-#    include "../src/win/winapi.h"
-#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -65,16 +62,9 @@ TEST_IMPL(error_message)
 
 TEST_IMPL(sys_error)
 {
-#if defined(_WIN32)
-    ASSERT_EQ(uv_translate_sys_error(ERROR_NOACCESS), UV_EACCES);
-    ASSERT_EQ(uv_translate_sys_error(ERROR_ELEVATION_REQUIRED), UV_EACCES);
-    ASSERT_EQ(uv_translate_sys_error(WSAEADDRINUSE), UV_EADDRINUSE);
-    ASSERT_EQ(uv_translate_sys_error(ERROR_BAD_PIPE), UV_EPIPE);
-#else
     ASSERT_EQ(uv_translate_sys_error(EPERM), UV_EPERM);
     ASSERT_EQ(uv_translate_sys_error(EPIPE), UV_EPIPE);
     ASSERT_EQ(uv_translate_sys_error(EINVAL), UV_EINVAL);
-#endif
     ASSERT_EQ(uv_translate_sys_error(UV_EINVAL), UV_EINVAL);
     ASSERT_EQ(uv_translate_sys_error(UV_ERANGE), UV_ERANGE);
     ASSERT_EQ(uv_translate_sys_error(UV_EACCES), UV_EACCES);

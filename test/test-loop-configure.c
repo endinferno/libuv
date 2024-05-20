@@ -27,11 +27,7 @@ TEST_IMPL(loop_configure)
     uv_timer_t timer_handle;
     uv_loop_t loop;
     ASSERT_OK(uv_loop_init(&loop));
-#ifdef _WIN32
-    ASSERT_EQ(UV_ENOSYS, uv_loop_configure(&loop, UV_LOOP_BLOCK_SIGNAL, 0));
-#else
     ASSERT_OK(uv_loop_configure(&loop, UV_LOOP_BLOCK_SIGNAL, SIGPROF));
-#endif
     ASSERT_OK(uv_timer_init(&loop, &timer_handle));
     ASSERT_OK(uv_timer_start(&timer_handle, timer_cb, 10, 0));
     ASSERT_OK(uv_run(&loop, UV_RUN_DEFAULT));
