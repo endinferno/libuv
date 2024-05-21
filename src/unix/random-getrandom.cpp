@@ -22,36 +22,7 @@
 #include "internal.h"
 #include "uv.h"
 
-#ifdef __linux__
-
-#    define uv__random_getrandom_init() 0
-
-#else /* !__linux__ */
-
-#    include <dlfcn.h>
-#    include <stddef.h>
-
-typedef ssize_t (*uv__getrandom_cb)(void*, size_t, unsigned);
-
-static uv__getrandom_cb uv__getrandom;
-static uv_once_t once = UV_ONCE_INIT;
-
-static void uv__random_getrandom_init_once(void)
-{
-    uv__getrandom = (uv__getrandom_cb)dlsym(RTLD_DEFAULT, "getrandom");
-}
-
-static int uv__random_getrandom_init(void)
-{
-    uv_once(&once, uv__random_getrandom_init_once);
-
-    if (uv__getrandom == NULL)
-        return UV_ENOSYS;
-
-    return 0;
-}
-
-#endif /* !__linux__ */
+#define uv__random_getrandom_init() 0
 
 int uv__random_getrandom(void* buf, size_t buflen)
 {

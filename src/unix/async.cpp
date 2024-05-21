@@ -28,15 +28,15 @@
 #include <assert.h>
 #include <errno.h>
 #include <sched.h> /* sched_yield() */
-#include <stdatomic.h>
+// #include <stdatomic.h>
 #include <stdio.h> /* snprintf() */
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#ifdef __linux__
-#    include <sys/eventfd.h>
-#endif
+#include <sys/eventfd.h>
+
+#include <atomic>
 
 static void uv__async_send(uv_loop_t* loop);
 static int uv__async_start(uv_loop_t* loop);
@@ -65,10 +65,13 @@ int uv_async_init(uv_loop_t* loop, uv_async_t* handle, uv_async_cb async_cb)
 
 int uv_async_send(uv_async_t* handle)
 {
-    _Atomic int* pending;
-    _Atomic int* busy;
+    std::atomic<int>* pending;
+    std::atomic<int>* busy;
+    // _Atomic int* pending;
+    // _Atomic int* busy;
 
-    pending = (_Atomic int*)&handle->pending;
+    // pending = (_Atomic int*)&handle->pending;
+    pending = reinterpret_cast<std::atomic<int>*>(&handle->pending);
     busy = (_Atomic int*)&handle->u.fd;
 
     /* Do a cheap read first. */

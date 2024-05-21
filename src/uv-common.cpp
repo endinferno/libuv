@@ -52,10 +52,10 @@ static uv__allocator_t uv__allocator = {
 char* uv__strdup(const char* s)
 {
     size_t len = strlen(s) + 1;
-    char* m = uv__malloc(len);
+    char* m = reinterpret_cast<char*>(uv__malloc(len));
     if (m == NULL)
         return NULL;
-    return memcpy(m, s, len);
+    return reinterpret_cast<char*>(memcpy(m, s, len));
 }
 
 char* uv__strndup(const char* s, size_t n)
@@ -64,11 +64,11 @@ char* uv__strndup(const char* s, size_t n)
     size_t len = strlen(s);
     if (n < len)
         len = n;
-    m = uv__malloc(len + 1);
+    m = reinterpret_cast<char*>(uv__malloc(len + 1));
     if (m == NULL)
         return NULL;
     m[len] = '\0';
-    return memcpy(m, s, len);
+    return reinterpret_cast<char*>(memcpy(m, s, len));
 }
 
 void* uv__malloc(size_t size)
@@ -712,7 +712,7 @@ void uv__fs_scandir_cleanup(uv_fs_t* req)
     unsigned int n;
 
     if (req->result >= 0) {
-        dents = req->ptr;
+        dents = reinterpret_cast<uv__dirent_t**>(req->ptr);
         nbufs = uv__get_nbufs(req);
 
         i = 0;
@@ -746,7 +746,7 @@ int uv_fs_scandir_next(uv_fs_t* req, uv_dirent_t* ent)
     nbufs = uv__get_nbufs(req);
     assert(nbufs);
 
-    dents = req->ptr;
+    dents = reinterpret_cast<uv__dirent_t**>(req->ptr);
 
     /* Free previous entity */
     if (*nbufs > 0)
@@ -798,7 +798,7 @@ void uv__fs_readdir_cleanup(uv_fs_t* req)
     if (req->ptr == NULL)
         return;
 
-    dir = req->ptr;
+    dir = reinterpret_cast<uv_dir_t*>(req->ptr);
     dirents = dir->dirents;
     req->ptr = NULL;
 
@@ -847,7 +847,7 @@ uv_loop_t* uv_loop_new(void)
 {
     uv_loop_t* loop;
 
-    loop = uv__malloc(sizeof(*loop));
+    loop = reinterpret_cast<uv_loop_t*>(uv__malloc(sizeof(*loop)));
     if (loop == NULL)
         return NULL;
 
@@ -939,17 +939,8 @@ void uv_os_free_environ(uv_env_item_t* envitems, int count)
 
 void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count)
 {
-#ifdef __linux__
     (void)&count;
     uv__free(cpu_infos);
-#else
-    int i;
-
-    for (i = 0; i < count; i++)
-        uv__free(cpu_infos[i].model);
-
-    uv__free(cpu_infos);
-#endif /* __linux__ */
 }
 
 

@@ -37,19 +37,9 @@
 #include "uv.h"
 #include "uv/tree.h"
 
-#ifndef _MSC_VER
-#    include <stdatomic.h>
-#endif
+// #include <stdatomic.h>
 
-#if EDOM > 0
-#    define UV__ERR(x) (-(x))
-#else
-#    define UV__ERR(x) (x)
-#endif
-
-#if !defined(snprintf) && defined(_MSC_VER) && _MSC_VER < 1900
-extern int snprintf(char*, size_t, const char*, ...);
-#endif
+#define UV__ERR(x) (-(x))
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 #define ARRAY_END(a) ((a) + ARRAY_SIZE(a))
@@ -65,13 +55,8 @@ extern int snprintf(char*, size_t, const char*, ...);
         void uv__static_assert(int static_assert_failed[1 - 2 * !(expr)])
 #endif
 
-#ifdef _MSC_VER
-#    define uv__exchange_int_relaxed(p, v) \
-        InterlockedExchangeNoFence((LONG volatile*)(p), v)
-#else
-#    define uv__exchange_int_relaxed(p, v) \
-        atomic_exchange_explicit((_Atomic int*)(p), v, memory_order_relaxed)
-#endif
+#define uv__exchange_int_relaxed(p, v) \
+    atomic_exchange_explicit((_Atomic int*)(p), v, memory_order_relaxed)
 
 #define UV__UDP_DGRAM_MAXSIZE (64 * 1024)
 
@@ -357,7 +342,6 @@ struct uv__loop_metrics_s
 void uv__metrics_update_idle_time(uv_loop_t* loop);
 void uv__metrics_set_provider_entry_time(uv_loop_t* loop);
 
-#ifdef __linux__
 struct uv__iou
 {
     uint32_t* sqhead;
@@ -379,18 +363,15 @@ struct uv__iou
     uint32_t in_flight;
     uint32_t flags;
 };
-#endif /* __linux__ */
 
 struct uv__loop_internal_fields_s
 {
     unsigned int flags;
     uv__loop_metrics_t loop_metrics;
     int current_timeout;
-#ifdef __linux__
     struct uv__iou ctl;
     struct uv__iou iou;
     void* inv; /* used by uv__platform_invalidate_fd() */
-#endif         /* __linux__ */
 };
 
 #endif /* UV_COMMON_H_ */
