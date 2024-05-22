@@ -33,6 +33,7 @@
 #include <net/if.h> /* if_nametoindex */
 #include <sys/un.h> /* AF_UNIX, sockaddr_un */
 
+#include <atomic>
 
 typedef struct
 {
@@ -953,19 +954,15 @@ __attribute__((destructor))
 #endif
 void uv_library_shutdown(void)
 {
-    static int was_shutdown;
+    static std::atomic<int> was_shutdown;
 
-    if (uv__exchange_int_relaxed(&was_shutdown, 1))
+    if (std::atomic_exchange_explicit(
+            &was_shutdown, 1, std::memory_order::memory_order_relaxed))
         return;
 
     uv__process_title_cleanup();
     uv__signal_cleanup();
-#ifdef __MVS__
-    /* TODO(itodorov) - zos: revisit when Woz compiler is available. */
-    uv__os390_cleanup();
-#else
     uv__threadpool_cleanup();
-#endif
 }
 
 

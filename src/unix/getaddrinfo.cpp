@@ -191,17 +191,20 @@ int uv_getaddrinfo(uv_loop_t* loop, uv_getaddrinfo_t* req, uv_getaddrinfo_cb cb,
     len = 0;
 
     if (hints) {
-        req->hints = memcpy(buf + len, hints, sizeof(*hints));
+        req->hints = reinterpret_cast<struct addrinfo*>(
+            memcpy(buf + len, hints, sizeof(*hints)));
         len += sizeof(*hints);
     }
 
     if (service) {
-        req->service = memcpy(buf + len, service, service_len);
+        req->service =
+            reinterpret_cast<char*>(memcpy(buf + len, service, service_len));
         len += service_len;
     }
 
     if (hostname)
-        req->hostname = memcpy(buf + len, hostname, hostname_len);
+        req->hostname =
+            reinterpret_cast<char*>(memcpy(buf + len, hostname, hostname_len));
 
     if (cb) {
         uv__work_submit(loop,

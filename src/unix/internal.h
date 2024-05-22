@@ -381,7 +381,7 @@ UV_UNUSED(static char* uv__basename_r(const char* path))
 {
     char* s;
 
-    s = strrchr(path, '/');
+    s = const_cast<char*>(strrchr(path, '/'));
     if (s == NULL)
         return (char*)path;
 

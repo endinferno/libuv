@@ -118,7 +118,8 @@ extern char* mkdtemp(char* template); /* See issue #740 on AIX < 7 */
             size_t new_path_len;                                  \
             path_len = strlen(path) + 1;                          \
             new_path_len = strlen(new_path) + 1;                  \
-            req->path = uv__malloc(path_len + new_path_len);      \
+            req->path = reinterpret_cast<const char*>(            \
+                uv__malloc(path_len + new_path_len));             \
             if (req->path == NULL)                                \
                 return UV_ENOMEM;                                 \
             req->new_path = req->path + path_len;                 \
@@ -1977,7 +1978,8 @@ int uv_fs_read(uv_loop_t* loop, uv_fs_t* req, uv_file file,
 
     req->bufs = req->bufsml;
     if (nbufs > ARRAY_SIZE(req->bufsml))
-        req->bufs = uv__malloc(nbufs * sizeof(*bufs));
+        req->bufs =
+            reinterpret_cast<uv_buf_t*>(uv__malloc(nbufs * sizeof(*bufs)));
 
     if (req->bufs == NULL)
         return UV_ENOMEM;
@@ -2138,7 +2140,8 @@ int uv_fs_write(uv_loop_t* loop, uv_fs_t* req, uv_file file,
     req->nbufs = nbufs;
     req->bufs = req->bufsml;
     if (nbufs > ARRAY_SIZE(req->bufsml))
-        req->bufs = uv__malloc(nbufs * sizeof(*bufs));
+        req->bufs =
+            reinterpret_cast<uv_buf_t*>(uv__malloc(nbufs * sizeof(*bufs)));
 
     if (req->bufs == NULL)
         return UV_ENOMEM;
