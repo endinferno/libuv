@@ -73,7 +73,7 @@ int uv_fs_poll_start(uv_fs_poll_t* handle, uv_fs_poll_cb cb, const char* path,
 
     loop = handle->loop;
     len = strlen(path);
-    ctx = uv__calloc(1, sizeof(*ctx) + len);
+    ctx = reinterpret_cast<struct poll_ctx*>(uv__calloc(1, sizeof(*ctx) + len));
 
     if (ctx == NULL)
         return UV_ENOMEM;
@@ -97,7 +97,7 @@ int uv_fs_poll_start(uv_fs_poll_t* handle, uv_fs_poll_cb cb, const char* path,
         goto error;
 
     if (handle->poll_ctx != NULL)
-        ctx->previous = handle->poll_ctx;
+        ctx->previous = reinterpret_cast<struct poll_ctx*>(handle->poll_ctx);
     handle->poll_ctx = ctx;
     uv__handle_start(handle);
 

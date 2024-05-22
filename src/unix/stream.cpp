@@ -584,7 +584,8 @@ done:
     if (server->queued_fds != NULL) {
         uv__stream_queued_fds_t* queued_fds;
 
-        queued_fds = server->queued_fds;
+        queued_fds =
+            reinterpret_cast<uv__stream_queued_fds_t*>(server->queued_fds);
 
         /* Read first */
         server->accepted_fd = queued_fds->fds[0];
@@ -958,11 +959,11 @@ static int uv__stream_queue_fd(uv_stream_t* stream, int fd)
     uv__stream_queued_fds_t* queued_fds;
     unsigned int queue_size;
 
-    queued_fds = stream->queued_fds;
+    queued_fds = reinterpret_cast<uv__stream_queued_fds_t*>(stream->queued_fds);
     if (queued_fds == NULL) {
         queue_size = 8;
-        queued_fds = uv__malloc((queue_size - 1) * sizeof(*queued_fds->fds) +
-                                sizeof(*queued_fds));
+        queued_fds = reinterpret_cast<uv__stream_queued_fds_t*>(uv__malloc(
+            (queue_size - 1) * sizeof(*queued_fds->fds) + sizeof(*queued_fds)));
         if (queued_fds == NULL)
             return UV_ENOMEM;
         queued_fds->size = queue_size;
@@ -972,9 +973,9 @@ static int uv__stream_queue_fd(uv_stream_t* stream, int fd)
         /* Grow */
     } else if (queued_fds->size == queued_fds->offset) {
         queue_size = queued_fds->size + 8;
-        queued_fds = uv__realloc(
+        queued_fds = reinterpret_cast<uv__stream_queued_fds_t*>(uv__realloc(
             queued_fds,
-            (queue_size - 1) * sizeof(*queued_fds->fds) + sizeof(*queued_fds));
+            (queue_size - 1) * sizeof(*queued_fds->fds) + sizeof(*queued_fds)));
 
         /*
          * Allocation failure, report back.
@@ -1017,7 +1018,7 @@ static int uv__stream_recv_cmsg(uv_stream_t* stream, struct msghdr* msg)
         assert(count % sizeof(fd) == 0);
         count /= sizeof(fd);
 
-        p = (void*)CMSG_DATA(cmsg);
+        p = reinterpret_cast<char*>(CMSG_DATA(cmsg));
         pe = p + count * sizeof(fd);
 
         while (p < pe) {
@@ -1375,7 +1376,8 @@ int uv_write2(uv_write_t* req, uv_stream_t* stream, const uv_buf_t bufs[],
 
     req->bufs = req->bufsml;
     if (nbufs > ARRAY_SIZE(req->bufsml))
-        req->bufs = uv__malloc(nbufs * sizeof(bufs[0]));
+        req->bufs =
+            reinterpret_cast<uv_buf_t*>(uv__malloc(nbufs * sizeof(bufs[0])));
 
     if (req->bufs == NULL)
         return UV_ENOMEM;

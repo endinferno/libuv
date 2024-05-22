@@ -24,7 +24,6 @@
 
 #include <assert.h>
 #include <errno.h>
-#include <stdatomic.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
 #include <termios.h>

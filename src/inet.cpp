@@ -34,8 +34,12 @@ static int inet_pton6(const char* src, unsigned char* dst);
 int uv_inet_ntop(int af, const void* src, char* dst, size_t size)
 {
     switch (af) {
-    case AF_INET: return (inet_ntop4(src, dst, size));
-    case AF_INET6: return (inet_ntop6(src, dst, size));
+    case AF_INET:
+        return (
+            inet_ntop4(reinterpret_cast<const unsigned char*>(src), dst, size));
+    case AF_INET6:
+        return (
+            inet_ntop6(reinterpret_cast<const unsigned char*>(src), dst, size));
     default: return UV_EAFNOSUPPORT;
     }
     /* NOTREACHED */
@@ -150,13 +154,14 @@ int uv_inet_pton(int af, const char* src, void* dst)
         return UV_EINVAL;
 
     switch (af) {
-    case AF_INET: return (inet_pton4(src, dst));
+    case AF_INET:
+        return (inet_pton4(src, reinterpret_cast<unsigned char*>(dst)));
     case AF_INET6:
     {
         int len;
         char tmp[UV__INET6_ADDRSTRLEN], *s, *p;
         s = (char*)src;
-        p = strchr(src, '%');
+        p = const_cast<char*>(strchr(src, '%'));
         if (p != NULL) {
             s = tmp;
             len = p - src;
@@ -165,7 +170,7 @@ int uv_inet_pton(int af, const char* src, void* dst)
             memcpy(s, src, len);
             s[len] = '\0';
         }
-        return inet_pton6(s, dst);
+        return inet_pton6(s, reinterpret_cast<unsigned char*>(dst));
     }
     default: return UV_EAFNOSUPPORT;
     }

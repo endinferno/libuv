@@ -106,7 +106,7 @@ int uv_pipe_bind2(uv_pipe_t* handle, const char* name, size_t namelen,
     if (*name == '\0') {
         addrlen = offsetof(struct sockaddr_un, sun_path) + namelen;
     } else {
-        pipe_fname = uv__malloc(namelen + 1);
+        pipe_fname = reinterpret_cast<char*>(uv__malloc(namelen + 1));
         if (pipe_fname == NULL)
             return UV_ENOMEM;
         memcpy(pipe_fname, name, namelen);
