@@ -344,13 +344,13 @@ void uv__metrics_set_provider_entry_time(uv_loop_t* loop);
 
 struct uv__iou
 {
-    uint32_t* sqhead;
-    uint32_t* sqtail;
+    std::atomic<uint32_t>* sqhead;
+    std::atomic<uint32_t>* sqtail;
     uint32_t* sqarray;
     uint32_t sqmask;
-    uint32_t* sqflags;
-    uint32_t* cqhead;
-    uint32_t* cqtail;
+    std::atomic<uint32_t>* sqflags;
+    std::atomic<uint32_t>* cqhead;
+    std::atomic<uint32_t>* cqtail;
     uint32_t cqmask;
     void* sq;  /* pointer to munmap() on event loop teardown */
     void* cqe; /* pointer to array of struct uv__io_uring_cqe */

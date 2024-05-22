@@ -29,7 +29,6 @@
 #include <assert.h>
 #include <errno.h>
 #include <inttypes.h>
-#include <stdatomic.h>
 #include <stddef.h> /* offsetof */
 #include <stdint.h>
 #include <stdio.h>
@@ -55,6 +54,8 @@
 #include <sys/utsname.h>
 #include <time.h>
 #include <unistd.h>
+
+#include <atomic>
 
 #ifndef __NR_io_uring_setup
 #    define __NR_io_uring_setup 425
@@ -315,7 +316,7 @@ static struct watcher_root* uv__inotify_watchers(uv_loop_t* loop)
 
 unsigned uv__kernel_version(void)
 {
-    static _Atomic unsigned cached_version;
+    static std::atomic<unsigned> cached_version;
     struct utsname u;
     unsigned version;
     unsigned major;
@@ -324,7 +325,8 @@ unsigned uv__kernel_version(void)
     char v_sig[256];
     char* needle;
 
-    version = atomic_load_explicit(&cached_version, memory_order_relaxed);
+    version = std::atomic_load_explicit(
+        &cached_version, std::memory_order::memory_order_relaxed);
     if (version != 0)
         return version;
 
@@ -380,7 +382,8 @@ unsigned uv__kernel_version(void)
 
 calculate_version:
     version = major * 65536 + minor * 256 + patch;
-    atomic_store_explicit(&cached_version, version, memory_order_relaxed);
+    std::atomic_store_explicit(
+        &cached_version, version, std::memory_order::memory_order_relaxed);
 
     return version;
 }
@@ -458,11 +461,12 @@ int uv__io_uring_register(int fd, unsigned opcode, void* arg, unsigned nargs)
 static int uv__use_io_uring(void)
 {
     /* Ternary: unknown=0, yes=1, no=-1 */
-    static _Atomic int use_io_uring;
+    static std::atomic<int> use_io_uring;
     char* val;
     int use;
 
-    use = atomic_load_explicit(&use_io_uring, memory_order_relaxed);
+    use = std::atomic_load_explicit(&use_io_uring,
+                                    std::memory_order::memory_order_relaxed);
 
     if (use == 0) {
         use = uv__kernel_version() >=
@@ -477,7 +481,8 @@ static int uv__use_io_uring(void)
         if (val != NULL)
             use = atoi(val) ? 1 : -1;
 
-        atomic_store_explicit(&use_io_uring, use, memory_order_relaxed);
+        std::atomic_store_explicit(
+            &use_io_uring, use, std::memory_order::memory_order_relaxed);
     }
 
     return use > 0;
@@ -538,19 +543,19 @@ static void uv__iou_init(int epollfd, struct uv__iou* iou, uint32_t entries,
     maxlen = sqlen < cqlen ? cqlen : sqlen;
     sqelen = params.sq_entries * sizeof(struct uv__io_uring_sqe);
 
-    sq = mmap(0,
-              maxlen,
-              PROT_READ | PROT_WRITE,
-              MAP_SHARED | MAP_POPULATE,
-              ringfd,
-              0); /* IORING_OFF_SQ_RING */
+    sq = reinterpret_cast<char*>(mmap(0,
+                                      maxlen,
+                                      PROT_READ | PROT_WRITE,
+                                      MAP_SHARED | MAP_POPULATE,
+                                      ringfd,
+                                      0)); /* IORING_OFF_SQ_RING */
 
-    sqe = mmap(0,
-               sqelen,
-               PROT_READ | PROT_WRITE,
-               MAP_SHARED | MAP_POPULATE,
-               ringfd,
-               0x10000000ull); /* IORING_OFF_SQES */
+    sqe = reinterpret_cast<char*>(mmap(0,
+                                       sqelen,
+                                       PROT_READ | PROT_WRITE,
+                                       MAP_SHARED | MAP_POPULATE,
+                                       ringfd,
+                                       0x10000000ull)); /* IORING_OFF_SQES */
 
     if (sq == MAP_FAILED || sqe == MAP_FAILED)
         goto fail;
@@ -690,7 +695,7 @@ void uv__platform_invalidate_fd(uv_loop_t* loop, int fd)
     int i;
 
     lfields = uv__get_internal_fields(loop);
-    inv = lfields->inv;
+    inv = reinterpret_cast<struct uv__invalidate*>(lfields->inv);
 
     /* Invalidate events with same file descriptor */
     if (inv != NULL)
@@ -760,8 +765,8 @@ static struct uv__io_uring_sqe* uv__iou_get_sqe(struct uv__iou* iou,
     if (iou->ringfd == -1)
         return NULL;
 
-    head = atomic_load_explicit((_Atomic uint32_t*)iou->sqhead,
-                                memory_order_acquire);
+    head = std::atomic_load_explicit(iou->sqhead,
+                                     std::memory_order::memory_order_acquire);
     tail = *iou->sqtail;
     mask = iou->sqmask;
 
@@ -770,7 +775,7 @@ static struct uv__io_uring_sqe* uv__iou_get_sqe(struct uv__iou* iou,
                       */
 
     slot = tail & mask;
-    sqe = iou->sqe;
+    sqe = reinterpret_cast<struct uv__io_uring_sqe*>(iou->sqe);
     sqe = &sqe[slot];
     memset(sqe, 0, sizeof(*sqe));
     sqe->user_data = (uintptr_t)req;
@@ -792,11 +797,11 @@ static void uv__iou_submit(struct uv__iou* iou)
 {
     uint32_t flags;
 
-    atomic_store_explicit(
-        (_Atomic uint32_t*)iou->sqtail, *iou->sqtail + 1, memory_order_release);
+    std::atomic_store_explicit(
+        iou->sqtail, *iou->sqtail + 1, std::memory_order::memory_order_release);
 
-    flags = atomic_load_explicit((_Atomic uint32_t*)iou->sqflags,
-                                 memory_order_acquire);
+    flags = std::atomic_load_explicit(iou->sqflags,
+                                      std::memory_order::memory_order_acquire);
 
     if (flags & UV__IORING_SQ_NEED_WAKEUP)
         if (uv__io_uring_enter(iou->ringfd, 0, 0, UV__IORING_ENTER_SQ_WAKEUP))
@@ -1051,7 +1056,8 @@ int uv__iou_fs_statx(uv_loop_t* loop, uv_fs_t* req, int is_fstat, int is_lstat)
     struct uv__statx* statxbuf;
     struct uv__iou* iou;
 
-    statxbuf = uv__malloc(sizeof(*statxbuf));
+    statxbuf =
+        reinterpret_cast<struct uv__statx*>(uv__malloc(sizeof(*statxbuf)));
     if (statxbuf == NULL)
         return 0;
 
@@ -1117,7 +1123,7 @@ static void uv__iou_fs_statx_post(uv_fs_t* req)
     uv_stat_t* buf;
 
     buf = &req->statbuf;
-    statxbuf = req->ptr;
+    statxbuf = reinterpret_cast<struct uv__statx*>(req->ptr);
     req->ptr = NULL;
 
     if (req->result == 0) {
@@ -1144,10 +1150,10 @@ static void uv__poll_io_uring(uv_loop_t* loop, struct uv__iou* iou)
     int rc;
 
     head = *iou->cqhead;
-    tail = atomic_load_explicit((_Atomic uint32_t*)iou->cqtail,
-                                memory_order_acquire);
+    tail = std::atomic_load_explicit(iou->cqtail,
+                                     std::memory_order::memory_order_acquire);
     mask = iou->cqmask;
-    cqe = iou->cqe;
+    cqe = reinterpret_cast<struct uv__io_uring_cqe*>(iou->cqe);
     nevents = 0;
 
     for (i = head; i != tail; i++) {
@@ -1181,14 +1187,14 @@ static void uv__poll_io_uring(uv_loop_t* loop, struct uv__iou* iou)
         nevents++;
     }
 
-    atomic_store_explicit(
-        (_Atomic uint32_t*)iou->cqhead, tail, memory_order_release);
+    std::atomic_store_explicit(
+        iou->cqhead, tail, std::memory_order::memory_order_release);
 
     /* Check whether CQE's overflowed, if so enter the kernel to make them
      * available. Don't grab them immediately but in the next loop iteration to
      * avoid loop starvation. */
-    flags = atomic_load_explicit((_Atomic uint32_t*)iou->sqflags,
-                                 memory_order_acquire);
+    flags = std::atomic_load_explicit(iou->sqflags,
+                                      std::memory_order::memory_order_acquire);
 
     if (flags & UV__IORING_SQ_CQ_OVERFLOW) {
         do
@@ -1228,7 +1234,7 @@ static void uv__epoll_ctl_prep(int epollfd, struct uv__iou* ctl,
     pe = &(*events)[slot];
     *pe = *e;
 
-    sqe = ctl->sqe;
+    sqe = reinterpret_cast<struct uv__io_uring_sqe*>(ctl->sqe);
     sqe = &sqe[slot];
 
     memset(sqe, 0, sizeof(*sqe));
@@ -1283,7 +1289,7 @@ static void uv__epoll_ctl_flush(int epollfd, struct uv__iou* ctl,
     while (*ctl->cqhead != *ctl->cqtail) {
         slot = (*ctl->cqhead)++ & ctl->cqmask;
 
-        cqe = ctl->cqe;
+        cqe = reinterpret_cast<struct uv__io_uring_cqe*>(ctl->cqe);
         cqe = &cqe[slot];
 
         if (cqe->res == 0)
@@ -1588,7 +1594,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout)
 
 uint64_t uv__hrtime(uv_clocktype_t type)
 {
-    static _Atomic clock_t fast_clock_id = -1;
+    static std::atomic<clock_t> fast_clock_id(-1);
     struct timespec t;
     clock_t clock_id;
 
@@ -1604,7 +1610,8 @@ uint64_t uv__hrtime(uv_clocktype_t type)
     if (type != UV_CLOCK_FAST)
         goto done;
 
-    clock_id = atomic_load_explicit(&fast_clock_id, memory_order_relaxed);
+    clock_id = std::atomic_load_explicit(
+        &fast_clock_id, std::memory_order::memory_order_relaxed);
     if (clock_id != -1)
         goto done;
 
@@ -1613,7 +1620,8 @@ uint64_t uv__hrtime(uv_clocktype_t type)
         if (t.tv_nsec <= 1 * 1000 * 1000)
             clock_id = CLOCK_MONOTONIC_COARSE;
 
-    atomic_store_explicit(&fast_clock_id, clock_id, memory_order_relaxed);
+    std::atomic_store_explicit(
+        &fast_clock_id, clock_id, std::memory_order::memory_order_relaxed);
 
 done:
 
@@ -1781,7 +1789,8 @@ int uv_cpu_info(uv_cpu_info_t** ci, int* count)
     snprintf(*models, sizeof(*models), "unknown");
     maxcpu = 0;
 
-    cpus = uv__calloc(ARRAY_SIZE(*cpus), sizeof(**cpus));
+    cpus = reinterpret_cast<struct cpu(*)[8192]>(
+        uv__calloc(ARRAY_SIZE(*cpus), sizeof(**cpus)));
     if (cpus == NULL)
         return UV_ENOMEM;
 
@@ -1846,7 +1855,8 @@ int uv_cpu_info(uv_cpu_info_t** ci, int* count)
 
         /* arm64: translate CPU part code to model name. */
         if (*parts) {
-            p = memmem(parts, sizeof(parts) - 1, p, n + 1);
+            p = reinterpret_cast<char*>(
+                memmem(parts, sizeof(parts) - 1, p, n + 1));
             if (p == NULL)
                 p = "unknown";
             else
@@ -1900,7 +1910,7 @@ nocpuinfo:
     }
 
     size = n * sizeof(**ci) + sizeof(models);
-    *ci = uv__malloc(size);
+    *ci = reinterpret_cast<uv_cpu_info_t*>(uv__malloc(size));
     *count = 0;
 
     if (*ci == NULL) {
@@ -1909,7 +1919,7 @@ nocpuinfo:
     }
 
     *count = n;
-    p = memcpy(*ci + n, models, sizeof(models));
+    p = reinterpret_cast<char*>(memcpy(*ci + n, models, sizeof(models)));
 
     i = 0;
     for (cpu = 0; cpu < maxcpu; cpu++) {
@@ -1983,7 +1993,8 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count)
     }
 
     /* Make sure the memory is initiallized to zero using calloc() */
-    *addresses = uv__calloc(*count, sizeof(**addresses));
+    *addresses = reinterpret_cast<uv_interface_address_t*>(
+        uv__calloc(*count, sizeof(**addresses)));
     if (!(*addresses)) {
         freeifaddrs(addrs);
         return UV_ENOMEM;
