@@ -1520,27 +1520,6 @@ void uv__stream_close(uv_stream_t* handle)
     unsigned int i;
     uv__stream_queued_fds_t* queued_fds;
 
-#if defined(__APPLE__)
-    /* Terminate select loop first */
-    if (handle->select != NULL) {
-        uv__stream_select_t* s;
-
-        s = handle->select;
-
-        uv_sem_post(&s->close_sem);
-        uv_sem_post(&s->async_sem);
-        uv__stream_osx_interrupt_select(handle);
-        uv_thread_join(&s->thread);
-        uv_sem_destroy(&s->close_sem);
-        uv_sem_destroy(&s->async_sem);
-        uv__close(s->fake_fd);
-        uv__close(s->int_fd);
-        uv_close((uv_handle_t*)&s->async, uv__stream_osx_cb_close);
-
-        handle->select = NULL;
-    }
-#endif /* defined(__APPLE__) */
-
     uv__io_close(handle->loop, &handle->io_watcher);
     uv_read_stop(handle);
     uv__handle_stop(handle);
@@ -1560,7 +1539,8 @@ void uv__stream_close(uv_stream_t* handle)
 
     /* Close all queued fds */
     if (handle->queued_fds != NULL) {
-        queued_fds = handle->queued_fds;
+        queued_fds =
+            reinterpret_cast<uv__stream_queued_fds_t*>(handle->queued_fds);
         for (i = 0; i < queued_fds->offset; i++)
             uv__close(queued_fds->fds[i]);
         uv__free(handle->queued_fds);

@@ -30,42 +30,11 @@
 #include <termios.h>
 #include <unistd.h>
 
-#if defined(__MVS__) && !defined(IMAXBEL)
-#    define IMAXBEL 0
-#endif
-
-#if defined(__PASE__)
-/* On IBM i PASE, for better compatibility with running interactive programs in
- * a 5250 environment, isatty() will return true for the stdin/stdout/stderr
- * streams created by QSH/QP2TERM.
- *
- * For more, see docs on PASE_STDIO_ISATTY in
- * https://www.ibm.com/support/knowledgecenter/ssw_ibm_i_74/apis/pase_environ.htm
- *
- * This behavior causes problems for Node as it expects that if isatty() returns
- * true that TTY ioctls will be supported by that fd (which is not an
- * unreasonable expectation) and when they don't it crashes with assertion
- * errors.
- *
- * Here, we create our own version of isatty() that uses ioctl() to identify
- * whether the fd is *really* a TTY or not.
- */
-static int isreallyatty(int file)
-{
-    int rc;
-
-    rc = !ioctl(file, TXISATTY + 0x81, NULL);
-    if (!rc && errno != EBADF)
-        errno = ENOTTY;
-
-    return rc;
-}
-#    define isatty(fd) isreallyatty(fd)
-#endif
+#include <atomic>
 
 static int orig_termios_fd = -1;
 static struct termios orig_termios;
-static _Atomic int termios_spinlock;
+static std::atomic<int> termios_spinlock;
 
 int uv__tcsetattr(int fd, int how, const struct termios* term)
 {
@@ -84,55 +53,9 @@ int uv__tcsetattr(int fd, int how, const struct termios* term)
 static int uv__tty_is_slave(const int fd)
 {
     int result;
-#if defined(__linux__) || defined(__FreeBSD__)
     int dummy;
 
     result = ioctl(fd, TIOCGPTN, &dummy) != 0;
-#elif defined(__APPLE__)
-    char dummy[256];
-
-    result = ioctl(fd, TIOCPTYGNAME, &dummy) != 0;
-#elif defined(__NetBSD__)
-    /*
-     * NetBSD as an extension returns with ptsname(3) and ptsname_r(3) the slave
-     * device name for both descriptors, the master one and slave one.
-     *
-     * Implement function to compare major device number with pts devices.
-     *
-     * The major numbers are machine-dependent, on NetBSD/amd64 they are
-     * respectively:
-     *  - master tty: ptc - major 6
-     *  - slave tty:  pts - major 5
-     */
-
-    struct stat sb;
-    /* Lookup device's major for the pts driver and cache it. */
-    static devmajor_t pts = NODEVMAJOR;
-
-    if (pts == NODEVMAJOR) {
-        pts = getdevmajor("pts", S_IFCHR);
-        if (pts == NODEVMAJOR)
-            abort();
-    }
-
-    /* Lookup stat structure behind the file descriptor. */
-    if (uv__fstat(fd, &sb) != 0)
-        abort();
-
-    /* Assert character device. */
-    if (!S_ISCHR(sb.st_mode))
-        abort();
-
-    /* Assert valid major. */
-    if (major(sb.st_rdev) == NODEVMAJOR)
-        abort();
-
-    result = (pts == major(sb.st_rdev));
-#else
-    /* Fallback to ptsname
-     */
-    result = ptsname(fd) == NULL;
-#endif
     return result;
 }
 
@@ -222,20 +145,6 @@ skip:
     if (!(flags & UV_HANDLE_BLOCKING_WRITES))
         uv__nonblock(fd, 1);
 
-#if defined(__APPLE__)
-    r = uv__stream_try_select((uv_stream_t*)tty, &fd);
-    if (r) {
-        int rc = r;
-        if (newfd != -1)
-            uv__close(newfd);
-        uv__queue_remove(&tty->handle_queue);
-        do
-            r = fcntl(fd, F_SETFL, saved_flags);
-        while (r == -1 && errno == EINTR);
-        return rc;
-    }
-#endif
-
     if (mode != O_WRONLY)
         flags |= UV_HANDLE_READABLE;
     if (mode != O_RDONLY)
@@ -251,38 +160,7 @@ static void uv__tty_make_raw(struct termios* tio)
 {
     assert(tio != NULL);
 
-#if defined __sun || defined __MVS__
-    /*
-     * This implementation of cfmakeraw for Solaris and derivatives is taken
-     * from http://www.perkin.org.uk/posts/solaris-portability-cfmakeraw.html.
-     */
-    tio->c_iflag &= ~(IMAXBEL | IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR |
-                      IGNCR | ICRNL | IXON);
-    tio->c_oflag &= ~OPOST;
-    tio->c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
-    tio->c_cflag &= ~(CSIZE | PARENB);
-    tio->c_cflag |= CS8;
-
-    /*
-     * By default, most software expects a pending read to block until at
-     * least one byte becomes available.  As per termio(7I), this requires
-     * setting the MIN and TIME parameters appropriately.
-     *
-     * As a somewhat unfortunate artifact of history, the MIN and TIME slots
-     * in the control character array overlap with the EOF and EOL slots used
-     * for canonical mode processing.  Because the EOF character needs to be
-     * the ASCII EOT value (aka Control-D), it has the byte value 4.  When
-     * switching to raw mode, this is interpreted as a MIN value of 4; i.e.,
-     * reads will block until at least four bytes have been input.
-     *
-     * Other platforms with a distinct MIN slot like Linux and FreeBSD appear
-     * to default to a MIN value of 1, so we'll force that value here:
-     */
-    tio->c_cc[VMIN] = 1;
-    tio->c_cc[VTIME] = 0;
-#else
     cfmakeraw(tio);
-#endif /* #ifdef __sun */
 }
 
 int uv_tty_set_mode(uv_tty_t* tty, uv_tty_mode_t mode)
@@ -307,15 +185,15 @@ int uv_tty_set_mode(uv_tty_t* tty, uv_tty_mode_t mode)
         /* This is used for uv_tty_reset_mode() */
         do
             expected = 0;
-        while (
-            !atomic_compare_exchange_strong(&termios_spinlock, &expected, 1));
+        while (!std::atomic_compare_exchange_strong(
+            &termios_spinlock, &expected, 1));
 
         if (orig_termios_fd == -1) {
             orig_termios = tty->orig_termios;
             orig_termios_fd = fd;
         }
 
-        atomic_store(&termios_spinlock, 0);
+        std::atomic_store(&termios_spinlock, 0);
     }
 
     tmp = tty->orig_termios;
@@ -374,21 +252,6 @@ uv_handle_type uv_guess_handle(uv_file file)
         return UV_TTY;
 
     if (uv__fstat(file, &s)) {
-#if defined(__PASE__)
-        /* On ibmi receiving RST from TCP instead of FIN immediately puts fd
-         * into an error state. fstat will return EINVAL, getsockname will also
-         * return EINVAL, even if sockaddr_storage is valid. (If file does not
-         * refer to a socket, ENOTSOCK is returned instead.) In such cases, we
-         * will permit the user to open the connection as uv_tcp still, so that
-         * the user can get immediately notified of the error in their read
-         * callback and close this fd.
-         */
-        len = sizeof(ss);
-        if (getsockname(file, (struct sockaddr*)&ss, &len)) {
-            if (errno == EINVAL)
-                return UV_TCP;
-        }
-#endif
         return UV_UNKNOWN_HANDLE;
     }
 
@@ -406,18 +269,6 @@ uv_handle_type uv_guess_handle(uv_file file)
 
     len = sizeof(ss);
     if (getsockname(file, (struct sockaddr*)&ss, &len)) {
-#if defined(_AIX)
-        /* On aix receiving RST from TCP instead of FIN immediately puts fd into
-         * an error state. In such case getsockname will return EINVAL, even if
-         * sockaddr_storage is valid.
-         * In such cases, we will permit the user to open the connection as
-         * uv_tcp still, so that the user can get immediately notified of the
-         * error in their read callback and close this fd.
-         */
-        if (errno == EINVAL) {
-            return UV_TCP;
-        }
-#endif
         return UV_UNKNOWN_HANDLE;
     }
 
@@ -430,15 +281,6 @@ uv_handle_type uv_guess_handle(uv_file file)
             return UV_UDP;
 
     if (type == SOCK_STREAM) {
-#if defined(_AIX) || defined(__DragonFly__)
-        /* on AIX/DragonFly the getsockname call returns an empty sa structure
-         * for sockets of type AF_UNIX.  For all other types it will
-         * return a properly filled in structure.
-         */
-        if (len == 0)
-            return UV_NAMED_PIPE;
-#endif /* defined(_AIX) || defined(__DragonFly__) */
-
         if (ss.ss_family == AF_INET || ss.ss_family == AF_INET6)
             return UV_TCP;
         if (ss.ss_family == AF_UNIX)
@@ -460,14 +302,14 @@ int uv_tty_reset_mode(void)
 
     saved_errno = errno;
 
-    if (atomic_exchange(&termios_spinlock, 1))
+    if (std::atomic_exchange(&termios_spinlock, 1))
         return UV_EBUSY; /* In uv_tty_set_mode(). */
 
     err = 0;
     if (orig_termios_fd != -1)
         err = uv__tcsetattr(orig_termios_fd, TCSANOW, &orig_termios);
 
-    atomic_store(&termios_spinlock, 0);
+    std::atomic_store(&termios_spinlock, 0);
     errno = saved_errno;
 
     return err;

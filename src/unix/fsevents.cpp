@@ -137,34 +137,34 @@ static void (*pFSEventStreamScheduleWithRunLoop)(FSEventStreamRef, CFRunLoopRef,
 static int (*pFSEventStreamStart)(FSEventStreamRef);
 static void (*pFSEventStreamStop)(FSEventStreamRef);
 
-#    define UV__FSEVENTS_PROCESS(handle, block)                             \
-        do {                                                                \
-            struct uv__queue events;                                        \
-            struct uv__queue* q;                                            \
-            uv__fsevents_event_t* event;                                    \
-            int err;                                                        \
-            uv_mutex_lock(&(handle)->cf_mutex);                             \
-            /* Split-off all events and empty original queue */             \
-            uv__queue_move(&(handle)->cf_events, &events);                  \
-            /* Get error (if any) and zero original one */                  \
-            err = (handle)->cf_error;                                       \
-            (handle)->cf_error = 0;                                         \
-            uv_mutex_unlock(&(handle)->cf_mutex);                           \
-            /* Loop through events, deallocating each after processing */   \
-            while (!uv__queue_empty(&events)) {                             \
-                q = uv__queue_head(&events);                                \
-                event = uv__queue_data(q, uv__fsevents_event_t, member);    \
-                uv__queue_remove(q);                                        \
-                /* NOTE: Checking uv__is_active() is required here, because \
-                 * handle callback may close handle and invoking it after it                         \
-                 * will lead to incorrect behaviour */                                                     \
-                if (!uv__is_closing((handle)) && uv__is_active((handle)))   \
-                    block /* Free allocated data */                         \
-                        uv__free(event);                                    \
-            }                                                               \
-            if (err != 0 && !uv__is_closing((handle)) &&                    \
-                uv__is_active((handle)))                                    \
-                (handle)->cb((handle), NULL, 0, err);                       \
+#    define UV__FSEVENTS_PROCESS(handle, block)                              \
+        do {                                                                 \
+            struct uv__queue events;                                         \
+            struct uv__queue* q;                                             \
+            uv__fsevents_event_t* event;                                     \
+            int err;                                                         \
+            uv_mutex_lock(&(handle)->cf_mutex);                              \
+            /* Split-off all events and empty original queue */              \
+            uv__queue_move(&(handle)->cf_events, &events);                   \
+            /* Get error (if any) and zero original one */                   \
+            err = (handle)->cf_error;                                        \
+            (handle)->cf_error = 0;                                          \
+            uv_mutex_unlock(&(handle)->cf_mutex);                            \
+            /* Loop through events, deallocating each after processing */    \
+            while (!uv__queue_empty(&events)) {                              \
+                q = uv__queue_head(&events);                                 \
+                event = uv__queue_data(q, uv__fsevents_event_t, member);     \
+                uv__queue_remove(q);                                         \
+                /* NOTE: Checking uv__is_active() is required here, because  \
+                 * handle callback may close handle and invoking it after it \
+                 * will lead to incorrect behaviour */                       \
+                if (!uv__is_closing((handle)) && uv__is_active((handle)))    \
+                    block /* Free allocated data */                          \
+                        uv__free(event);                                     \
+            }                                                                \
+            if (err != 0 && !uv__is_closing((handle)) &&                     \
+                uv__is_active((handle)))                                     \
+                (handle)->cb((handle), NULL, 0, err);                        \
         } while (0)
 
 

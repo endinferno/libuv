@@ -36,34 +36,14 @@
 #include <pwd.h>
 #include <termios.h>
 
-#if !defined(__MVS__)
-#    include <semaphore.h>
-#    include <sys/param.h> /* MAXHOSTNAMELEN on Linux and the BSDs */
-#endif
 #include <pthread.h>
+#include <semaphore.h>
 #include <signal.h>
+#include <sys/param.h> /* MAXHOSTNAMELEN on Linux and the BSDs */
 
 #include "uv/threadpool.h"
 
-#if defined(__linux__)
-#    include "uv/linux.h"
-#elif defined(__MVS__)
-#    include "uv/os390.h"
-#elif defined(__PASE__)   /* __PASE__ and _AIX are both defined on IBM i */
-#    include "uv/posix.h" /* IBM i needs uv/posix.h, not uv/aix.h */
-#elif defined(_AIX)
-#    include "uv/aix.h"
-#elif defined(__sun)
-#    include "uv/sunos.h"
-#elif defined(__APPLE__)
-#    include "uv/darwin.h"
-#elif defined(__DragonFly__) || defined(__FreeBSD__) || \
-    defined(__OpenBSD__) || defined(__NetBSD__)
-#    include "uv/bsd.h"
-#elif defined(__CYGWIN__) || defined(__MSYS__) || defined(__HAIKU__) || \
-    defined(__QNX__) || defined(__GNU__)
-#    include "uv/posix.h"
-#endif
+#include "uv/linux.h"
 
 #ifndef NI_MAXHOST
 #    define NI_MAXHOST 1025
@@ -319,7 +299,7 @@ typedef struct
 #define UV_ASYNC_PRIVATE_FIELDS \
     uv_async_cb async_cb;       \
     struct uv__queue queue;     \
-    int pending;
+    std::atomic<int> pending;
 
 #define UV_TIMER_PRIVATE_FIELDS \
     uv_timer_cb timer_cb;       \

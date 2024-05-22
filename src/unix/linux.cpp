@@ -457,15 +457,6 @@ int uv__io_uring_register(int fd, unsigned opcode, void* arg, unsigned nargs)
 
 static int uv__use_io_uring(void)
 {
-#if defined(__ANDROID_API__)
-    return 0; /* Possibly available but blocked by seccomp. */
-#elif defined(__arm__) && __SIZEOF_POINTER__ == 4
-    /* See https://github.com/libuv/libuv/issues/4158. */
-    return 0; /* All 32 bits kernels appear buggy. */
-#elif defined(__powerpc64__) || defined(__ppc64__)
-    /* See https://github.com/libuv/libuv/issues/4283. */
-    return 0; /* Random SIGSEGV in signal handler. */
-#else
     /* Ternary: unknown=0, yes=1, no=-1 */
     static _Atomic int use_io_uring;
     char* val;
@@ -475,17 +466,9 @@ static int uv__use_io_uring(void)
 
     if (use == 0) {
         use = uv__kernel_version() >=
-#    if defined(__hppa__)
-                      /* io_uring first supported on parisc in 6.1, functional
-                         in .51 */
-                      /* https://lore.kernel.org/all/cb912694-b1fe-dbb0-4d8c-d608f3526905@gmx.de/
-                       */
-                      /* 6.1.51 */ 0x060133
-#    else
                       /* Older kernels have a bug where the sqpoll thread uses
                          100% CPU. */
                       /* 5.10.186 */ 0x050ABA
-#    endif
                   ? 1
                   : -1;
 
@@ -498,7 +481,6 @@ static int uv__use_io_uring(void)
     }
 
     return use > 0;
-#endif
 }
 
 
@@ -516,8 +498,8 @@ static void uv__iou_init(int epollfd, struct uv__iou* iou, uint32_t entries,
     char* sqe;
     int ringfd;
 
-    sq = MAP_FAILED;
-    sqe = MAP_FAILED;
+    sq = reinterpret_cast<char*>(MAP_FAILED);
+    sqe = reinterpret_cast<char*>(MAP_FAILED);
 
     if (!uv__use_io_uring())
         return;
@@ -2408,7 +2390,7 @@ static char* uv__cgroup1_find_cpu_controller(const char* cgroup,
                                              int* cgroup_size)
 {
     /* Seek to the cpu controller line. */
-    char* cgroup_cpu = strstr(cgroup, ":cpu,");
+    char* cgroup_cpu = const_cast<char*>(strstr(cgroup, ":cpu,"));
 
     if (cgroup_cpu != NULL) {
         /* Skip the controller prefix to the start of the cgroup path. */
@@ -2756,12 +2738,12 @@ int uv_fs_event_start(uv_fs_event_t* handle, uv_fs_event_cb cb,
         goto no_insert;
 
     len = strlen(path) + 1;
-    w = uv__malloc(sizeof(*w) + len);
+    w = reinterpret_cast<struct watcher_list*>(uv__malloc(sizeof(*w) + len));
     if (w == NULL)
         return UV_ENOMEM;
 
     w->wd = wd;
-    w->path = memcpy(w + 1, path, len);
+    w->path = reinterpret_cast<char*>(memcpy(w + 1, path, len));
     uv__queue_init(&w->watchers);
     w->iterating = 0;
     RB_INSERT(watcher_root, uv__inotify_watchers(loop), w);

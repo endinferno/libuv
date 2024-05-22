@@ -23,6 +23,9 @@
 
 #ifndef UV_H
 #define UV_H
+
+#include <atomic>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -471,7 +474,7 @@ struct uv_shutdown_s
     struct uv__queue handle_queue; \
     union                          \
     {                              \
-        int fd;                    \
+        std::atomic<int> fd;       \
         void* reserved[4];         \
     } u;                           \
     UV_HANDLE_PRIVATE_FIELDS

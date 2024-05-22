@@ -490,7 +490,7 @@ int uv_utf16_to_wtf8(const uint16_t* w_source_ptr, ssize_t w_source_len,
         return 0;
 
     if (*target_ptr == NULL) {
-        target = uv__malloc(target_len + 1);
+        target = reinterpret_cast<char*>(uv__malloc(target_len + 1));
         if (target == NULL) {
             return UV_ENOMEM;
         }

@@ -375,25 +375,25 @@ typedef struct
     UV_ACCEPT, UV_FS_EVENT_REQ, UV_POLL_REQ, UV_PROCESS_EXIT, UV_READ, \
         UV_UDP_RECV, UV_WAKEUP, UV_SIGNAL_REQ,
 
-#define UV_REQ_PRIVATE_FIELDS                                                  \
-    union                                                                      \
-    {                                                                          \
-        /* Used by I/O operations */                                           \
-        struct                                                                 \
-        {                                                                      \
-            OVERLAPPED overlapped;                                             \
-            size_t queued_bytes;                                               \
-        } io;                                                                  \
-        /* in v2, we can move these to the UV_CONNECT_PRIVATE_FIELDS */        \
-        struct                                                                 \
-        {                                                                      \
-            ULONG_PTR                                                          \
-                result; /* overlapped.Internal is reused to hold the result */ \
-            HANDLE pipeHandle;                                                 \
-            DWORD duplex_flags;                                                \
-            WCHAR* name;                                                       \
-        } connect;                                                             \
-    } u;                                                                       \
+#define UV_REQ_PRIVATE_FIELDS                                              \
+    union                                                                  \
+    {                                                                      \
+        /* Used by I/O operations */                                       \
+        struct                                                             \
+        {                                                                  \
+            OVERLAPPED overlapped;                                         \
+            size_t queued_bytes;                                           \
+        } io;                                                              \
+        /* in v2, we can move these to the UV_CONNECT_PRIVATE_FIELDS */    \
+        struct                                                             \
+        {                                                                  \
+            ULONG_PTR                                                      \
+            result; /* overlapped.Internal is reused to hold the result */ \
+            HANDLE pipeHandle;                                             \
+            DWORD duplex_flags;                                            \
+            WCHAR* name;                                                   \
+        } connect;                                                         \
+    } u;                                                                   \
     struct uv_req_s* next_req;
 
 #define UV_WRITE_PRIVATE_FIELDS \

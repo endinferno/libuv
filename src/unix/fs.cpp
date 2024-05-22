@@ -32,7 +32,6 @@
 #include <dlfcn.h>
 #include <errno.h>
 #include <limits.h> /* PATH_MAX */
-#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,40 +45,16 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
-#if defined(__linux__)
-#    include <sys/sendfile.h>
-#endif
+#include <atomic>
 
-#if defined(__sun)
-#    include <sys/sendfile.h>
-#    include <sys/sysmacros.h>
-#endif
+#include <sys/sendfile.h>
 
-#if defined(__APPLE__)
-#    include <sys/sysctl.h>
-#elif defined(__linux__) && !defined(FICLONE)
+#if defined(__linux__) && !defined(FICLONE)
 #    include <sys/ioctl.h>
 #    define FICLONE _IOW(0x94, 9, int)
 #endif
 
-#if defined(_AIX) && !defined(_AIX71)
-#    include <utime.h>
-#endif
-
-#if defined(__APPLE__) || defined(__DragonFly__) || defined(__FreeBSD__) || \
-    defined(__OpenBSD__) || defined(__NetBSD__)
-#    include <sys/mount.h>
-#    include <sys/param.h>
-#elif defined(__sun) || defined(__MVS__) || defined(__NetBSD__) || \
-    defined(__HAIKU__) || defined(__QNX__)
-#    include <sys/statvfs.h>
-#else
-#    include <sys/statfs.h>
-#endif
-
-#if defined(_AIX) && _XOPEN_SOURCE <= 600
-extern char* mkdtemp(char* template); /* See issue #740 on AIX < 7 */
-#endif
+#include <sys/statfs.h>
 
 #define INIT(subtype)                   \
     do {                                \
@@ -292,7 +267,7 @@ static int uv__fs_mkstemp(uv_fs_t* req)
     static uv_once_t once = UV_ONCE_INIT;
     int r;
 #ifdef O_CLOEXEC
-    static _Atomic int no_cloexec_support;
+    static std::atomic<int> no_cloexec_support;
 #endif
     static const char pattern[] = "XXXXXX";
     static const size_t pattern_size = sizeof(pattern) - 1;
@@ -317,7 +292,8 @@ static int uv__fs_mkstemp(uv_fs_t* req)
     uv_once(&once, uv__mkostemp_initonce);
 
 #ifdef O_CLOEXEC
-    if (atomic_load_explicit(&no_cloexec_support, memory_order_relaxed) == 0 &&
+    if (atomic_load_explicit(&no_cloexec_support,
+                             std::memory_order::memory_order_relaxed) == 0 &&
         uv__mkostemp != NULL) {
         r = uv__mkostemp(path, O_CLOEXEC);
 
@@ -331,7 +307,8 @@ static int uv__fs_mkstemp(uv_fs_t* req)
 
         /* We set the static variable so that next calls don't even
            try to use mkostemp. */
-        atomic_store_explicit(&no_cloexec_support, 1, memory_order_relaxed);
+        std::atomic_store_explicit(
+            &no_cloexec_support, 1, std::memory_order::memory_order_relaxed);
     }
 #endif /* O_CLOEXEC */
 
@@ -454,23 +431,29 @@ static ssize_t uv__pwritev_emul(int fd, const struct iovec* bufs,
  */
 static ssize_t uv__preadv_or_pwritev(int fd, const struct iovec* bufs,
                                      size_t nbufs, off_t off,
-                                     _Atomic uintptr_t* cache, int is_pread)
+                                     std::atomic<uintptr_t>* cache,
+                                     int is_pread)
 {
     ssize_t (*f)(int, const struct iovec*, uv__iovcnt, off_t);
     void* p;
 
-    p = (void*)atomic_load_explicit(cache, memory_order_relaxed);
+    p = reinterpret_cast<void*>(std::atomic_load_explicit(
+        cache, std::memory_order::memory_order_relaxed));
     if (p == NULL) {
 #ifdef RTLD_DEFAULT
         p = dlsym(RTLD_DEFAULT, is_pread ? "preadv" : "pwritev");
         dlerror(); /* Clear errors. */
 #endif             /* RTLD_DEFAULT */
         if (p == NULL)
-            p = is_pread ? uv__preadv_emul : uv__pwritev_emul;
-        atomic_store_explicit(cache, (uintptr_t)p, memory_order_relaxed);
+            p = reinterpret_cast<void*>(is_pread ? uv__preadv_emul
+                                                 : uv__pwritev_emul);
+        std::atomic_store_explicit(cache,
+                                   reinterpret_cast<uintptr_t>(p),
+                                   std::memory_order::memory_order_relaxed);
     }
 
-    f = p;
+    f = reinterpret_cast<ssize_t (*)(
+        int, const struct iovec*, uv__iovcnt, off_t)>(p);
     return f(fd, bufs, nbufs, off);
 }
 
@@ -478,7 +461,7 @@ static ssize_t uv__preadv_or_pwritev(int fd, const struct iovec* bufs,
 static ssize_t uv__preadv(int fd, const struct iovec* bufs, size_t nbufs,
                           off_t off)
 {
-    static _Atomic uintptr_t cache;
+    static std::atomic<uintptr_t> cache;
     return uv__preadv_or_pwritev(fd, bufs, nbufs, off, &cache, /*is_pread*/ 1);
 }
 
@@ -486,7 +469,7 @@ static ssize_t uv__preadv(int fd, const struct iovec* bufs, size_t nbufs,
 static ssize_t uv__pwritev(int fd, const struct iovec* bufs, size_t nbufs,
                            off_t off)
 {
-    static _Atomic uintptr_t cache;
+    static std::atomic<uintptr_t> cache;
     return uv__preadv_or_pwritev(fd, bufs, nbufs, off, &cache, /*is_pread*/ 0);
 }
 
@@ -521,18 +504,6 @@ static ssize_t uv__fs_read(uv_fs_t* req)
         else if (nbufs > 1)
             r = uv__preadv(fd, bufs, nbufs, off);
     }
-
-#ifdef __PASE__
-    /* PASE returns EOPNOTSUPP when reading a directory, convert to EISDIR */
-    if (r == -1 && errno == EOPNOTSUPP) {
-        struct stat buf;
-        ssize_t rc;
-        rc = uv__fstat(fd, &buf);
-        if (rc == 0 && S_ISDIR(buf.st_mode)) {
-            errno = EISDIR;
-        }
-    }
-#endif
 
     /* We don't own the buffer list in the synchronous case. */
     if (req->cb != NULL)
@@ -588,7 +559,7 @@ static int uv__fs_opendir(uv_fs_t* req)
 {
     uv_dir_t* dir;
 
-    dir = uv__malloc(sizeof(*dir));
+    dir = reinterpret_cast<uv_dir_t*>(uv__malloc(sizeof(*dir)));
     if (dir == NULL)
         goto error;
 
@@ -613,7 +584,7 @@ static int uv__fs_readdir(uv_fs_t* req)
     unsigned int dirent_idx;
     unsigned int i;
 
-    dir = req->ptr;
+    dir = reinterpret_cast<uv_dir_t*>(req->ptr);
     dirent_idx = 0;
 
     while (dirent_idx < dir->nentries) {
@@ -656,7 +627,7 @@ static int uv__fs_closedir(uv_fs_t* req)
 {
     uv_dir_t* dir;
 
-    dir = req->ptr;
+    dir = reinterpret_cast<uv_dir_t*>(req->ptr);
 
     if (dir->dir != NULL) {
         closedir(dir->dir);
@@ -671,30 +642,18 @@ static int uv__fs_closedir(uv_fs_t* req)
 static int uv__fs_statfs(uv_fs_t* req)
 {
     uv_statfs_t* stat_fs;
-#if defined(__sun) || defined(__MVS__) || defined(__NetBSD__) || \
-    defined(__HAIKU__) || defined(__QNX__)
-    struct statvfs buf;
-
-    if (0 != statvfs(req->path, &buf))
-#else
     struct statfs buf;
 
     if (0 != statfs(req->path, &buf))
-#endif /* defined(__sun) */
         return -1;
 
-    stat_fs = uv__malloc(sizeof(*stat_fs));
+    stat_fs = reinterpret_cast<uv_statfs_t*>(uv__malloc(sizeof(*stat_fs)));
     if (stat_fs == NULL) {
         errno = ENOMEM;
         return -1;
     }
 
-#if defined(__sun) || defined(__MVS__) || defined(__OpenBSD__) || \
-    defined(__NetBSD__) || defined(__HAIKU__) || defined(__QNX__)
-    stat_fs->f_type = 0; /* f_type is not supported. */
-#else
     stat_fs->f_type = buf.f_type;
-#endif
     stat_fs->f_bsize = buf.f_bsize;
     stat_fs->f_blocks = buf.f_blocks;
     stat_fs->f_bfree = buf.f_bfree;
@@ -745,7 +704,7 @@ static ssize_t uv__fs_readlink(uv_fs_t* req)
         maxlen = uv__fs_pathmax_size(req->path);
 #endif
 
-    buf = uv__malloc(maxlen);
+    buf = reinterpret_cast<char*>(uv__malloc(maxlen));
 
     if (buf == NULL) {
         errno = ENOMEM;
@@ -765,7 +724,7 @@ static ssize_t uv__fs_readlink(uv_fs_t* req)
 
     /* Uncommon case: resize to make room for the trailing nul byte. */
     if (len == maxlen) {
-        buf = uv__reallocf(buf, len + 1);
+        buf = reinterpret_cast<char*>(uv__reallocf(buf, len + 1));
 
         if (buf == NULL)
             return -1;
@@ -970,11 +929,11 @@ static int uv__is_cifs_or_smb(int fd)
 static ssize_t uv__fs_try_copy_file_range(int in_fd, off_t* off, int out_fd,
                                           size_t len)
 {
-    static _Atomic int no_copy_file_range_support;
+    static std::atomic<int> no_copy_file_range_support;
     ssize_t r;
 
-    if (atomic_load_explicit(&no_copy_file_range_support,
-                             memory_order_relaxed)) {
+    if (std::atomic_load_explicit(&no_copy_file_range_support,
+                                  std::memory_order::memory_order_relaxed)) {
         errno = ENOSYS;
         return -1;
     }
@@ -993,8 +952,9 @@ static ssize_t uv__fs_try_copy_file_range(int in_fd, off_t* off, int out_fd,
             errno = ENOSYS; /* Use fallback. */
         break;
     case ENOSYS:
-        atomic_store_explicit(
-            &no_copy_file_range_support, 1, memory_order_relaxed);
+        std::atomic_store_explicit(&no_copy_file_range_support,
+                                   1,
+                                   std::memory_order::memory_order_relaxed);
         break;
     case EPERM:
         /* It's been reported that CIFS spuriously fails.
@@ -1489,15 +1449,15 @@ static int uv__fs_statx(int fd, const char* path, int is_fstat, int is_lstat,
                         uv_stat_t* buf)
 {
     STATIC_ASSERT(UV_ENOSYS != -1);
-#ifdef __linux__
-    static _Atomic int no_statx;
+    static std::atomic<int> no_statx;
     struct uv__statx statxbuf;
     int dirfd;
     int flags;
     int mode;
     int rc;
 
-    if (atomic_load_explicit(&no_statx, memory_order_relaxed))
+    if (std::atomic_load_explicit(&no_statx,
+                                  std::memory_order::memory_order_relaxed))
         return UV_ENOSYS;
 
     dirfd = AT_FDCWD;
@@ -1531,16 +1491,14 @@ static int uv__fs_statx(int fd, const char* path, int is_fstat, int is_lstat,
          * implemented, rc might return 1 with 0 set as the error code in which
          * case we return ENOSYS.
          */
-        atomic_store_explicit(&no_statx, 1, memory_order_relaxed);
+        std::atomic_store_explicit(
+            &no_statx, 1, std::memory_order::memory_order_relaxed);
         return UV_ENOSYS;
     }
 
     uv__statx_to_stat(&statxbuf, buf);
 
     return 0;
-#else
-    return UV_ENOSYS;
-#endif /* __linux__ */
 }
 
 

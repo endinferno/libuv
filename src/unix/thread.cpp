@@ -566,7 +566,7 @@ static int uv__custom_sem_init(uv_sem_t* sem_, unsigned int value)
     int err;
     uv_semaphore_t* sem;
 
-    sem = uv__malloc(sizeof(*sem));
+    sem = reinterpret_cast<uv_semaphore_t*>(uv__malloc(sizeof(*sem)));
     if (sem == NULL)
         return UV_ENOMEM;
 

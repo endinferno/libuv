@@ -116,7 +116,7 @@ int uv_fs_poll_stop(uv_fs_poll_t* handle)
     if (!uv_is_active((uv_handle_t*)handle))
         return 0;
 
-    ctx = handle->poll_ctx;
+    ctx = reinterpret_cast<struct poll_ctx*>(handle->poll_ctx);
     assert(ctx != NULL);
     assert(ctx->parent_handle == handle);
 
@@ -142,7 +142,7 @@ int uv_fs_poll_getpath(uv_fs_poll_t* handle, char* buffer, size_t* size)
         return UV_EINVAL;
     }
 
-    ctx = handle->poll_ctx;
+    ctx = reinterpret_cast<struct poll_ctx*>(handle->poll_ctx);
     assert(ctx != NULL);
 
     required_len = strlen(ctx->path);
@@ -244,7 +244,9 @@ static void timer_close_cb(uv_handle_t* timer)
         if (handle->poll_ctx == NULL && uv__is_closing(handle))
             uv__make_close_pending((uv_handle_t*)handle);
     } else {
-        for (last = handle->poll_ctx, it = last->previous; it != ctx;
+        for (last = reinterpret_cast<struct poll_ctx*>(handle->poll_ctx),
+            it = last->previous;
+             it != ctx;
              last = it, it = it->previous) {
             assert(last->previous != NULL);
         }

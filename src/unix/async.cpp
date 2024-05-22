@@ -67,26 +67,24 @@ int uv_async_send(uv_async_t* handle)
 {
     std::atomic<int>* pending;
     std::atomic<int>* busy;
-    // _Atomic int* pending;
-    // _Atomic int* busy;
 
-    // pending = (_Atomic int*)&handle->pending;
-    pending = reinterpret_cast<std::atomic<int>*>(&handle->pending);
-    busy = (_Atomic int*)&handle->u.fd;
+    pending = &handle->pending;
+    busy = &handle->u.fd;
 
     /* Do a cheap read first. */
-    if (atomic_load_explicit(pending, memory_order_relaxed) != 0)
+    if (std::atomic_load_explicit(pending,
+                                  std::memory_order::memory_order_relaxed) != 0)
         return 0;
 
     /* Set the loop to busy. */
-    atomic_fetch_add(busy, 1);
+    std::atomic_fetch_add(busy, 1);
 
     /* Wake up the other thread's event loop. */
-    if (atomic_exchange(pending, 1) == 0)
+    if (std::atomic_exchange(pending, 1) == 0)
         uv__async_send(handle->loop);
 
     /* Set the loop to not-busy. */
-    atomic_fetch_add(busy, -1);
+    std::atomic_fetch_add(busy, -1);
 
     return 0;
 }
@@ -96,16 +94,16 @@ int uv_async_send(uv_async_t* handle)
  * Only call this from the event loop thread. */
 static void uv__async_spin(uv_async_t* handle)
 {
-    _Atomic int* pending;
-    _Atomic int* busy;
+    std::atomic<int>* pending;
+    std::atomic<int>* busy;
     int i;
 
-    pending = (_Atomic int*)&handle->pending;
-    busy = (_Atomic int*)&handle->u.fd;
+    pending = &handle->pending;
+    busy = &handle->u.fd;
 
     /* Set the pending flag first, so no new events will be added by other
      * threads after this function returns. */
-    atomic_store(pending, 1);
+    std::atomic_store(pending, 1);
 
     for (;;) {
         /* 997 is not completely chosen at random. It's a prime number, acyclic
@@ -113,7 +111,7 @@ static void uv__async_spin(uv_async_t* handle)
          * resonance.
          */
         for (i = 0; i < 997; i++) {
-            if (atomic_load(busy) == 0)
+            if (std::atomic_load(busy) == 0)
                 return;
 
             /* Other thread is busy with this handle, spin until it's done. */
@@ -144,7 +142,7 @@ static void uv__async_io(uv_loop_t* loop, uv__io_t* w, unsigned int events)
     struct uv__queue queue;
     struct uv__queue* q;
     uv_async_t* h;
-    _Atomic int* pending;
+    std::atomic<int>* pending;
 
     assert(w == &loop->async_io_watcher);
 
@@ -175,8 +173,8 @@ static void uv__async_io(uv_loop_t* loop, uv__io_t* w, unsigned int events)
         uv__queue_insert_tail(&loop->async_handles, q);
 
         /* Atomically fetch and clear pending flag */
-        pending = (_Atomic int*)&h->pending;
-        if (atomic_exchange(pending, 0) == 0)
+        pending = &h->pending;
+        if (std::atomic_exchange(pending, 0) == 0)
             continue;
 
         if (h->async_cb == NULL)

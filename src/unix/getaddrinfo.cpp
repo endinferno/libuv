@@ -173,7 +173,8 @@ int uv_getaddrinfo(uv_loop_t* loop, uv_getaddrinfo_t* req, uv_getaddrinfo_cb cb,
     hostname_len = hostname ? strlen(hostname) + 1 : 0;
     service_len = service ? strlen(service) + 1 : 0;
     hints_len = hints ? sizeof(*hints) : 0;
-    buf = uv__malloc(hostname_len + service_len + hints_len);
+    buf = reinterpret_cast<char*>(
+        uv__malloc(hostname_len + service_len + hints_len));
 
     if (buf == NULL)
         return UV_ENOMEM;

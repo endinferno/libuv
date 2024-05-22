@@ -413,7 +413,7 @@ int uv_pipe_pending_count(uv_pipe_t* handle)
     if (handle->queued_fds == NULL)
         return 1;
 
-    queued_fds = handle->queued_fds;
+    queued_fds = reinterpret_cast<uv__stream_queued_fds_t*>(handle->queued_fds);
     return queued_fds->offset + 1;
 }
 
@@ -452,7 +452,7 @@ int uv_pipe_chmod(uv_pipe_t* handle, int mode)
     if (r != UV_ENOBUFS)
         return r;
 
-    name_buffer = uv__malloc(name_len);
+    name_buffer = reinterpret_cast<char*>(uv__malloc(name_len));
     if (name_buffer == NULL)
         return UV_ENOMEM;
 

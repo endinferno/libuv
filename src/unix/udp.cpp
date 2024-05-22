@@ -26,11 +26,8 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#if defined(__MVS__)
-#    include <xti.h>
-#endif
 #include <sys/un.h>
+#include <unistd.h>
 
 #if defined(IPV6_JOIN_GROUP) && !defined(IPV6_ADD_MEMBERSHIP)
 #    define IPV6_ADD_MEMBERSHIP IPV6_JOIN_GROUP
@@ -152,7 +149,6 @@ static void uv__udp_io(uv_loop_t* loop, uv__io_t* w, unsigned int revents)
 
 static int uv__udp_recvmmsg(uv_udp_t* handle, uv_buf_t* buf)
 {
-#if defined(__linux__) || defined(__FreeBSD__)
     struct sockaddr_in6 peers[20];
     struct iovec iov[ARRAY_SIZE(peers)];
     struct mmsghdr msgs[ARRAY_SIZE(peers)];
@@ -195,11 +191,13 @@ static int uv__udp_recvmmsg(uv_udp_t* handle, uv_buf_t* buf)
             if (msgs[k].msg_hdr.msg_flags & MSG_TRUNC)
                 flags |= UV_UDP_PARTIAL;
 
-            chunk_buf = uv_buf_init(iov[k].iov_base, iov[k].iov_len);
+            chunk_buf = uv_buf_init(reinterpret_cast<char*>(iov[k].iov_base),
+                                    iov[k].iov_len);
             handle->recv_cb(handle,
                             msgs[k].msg_len,
                             &chunk_buf,
-                            msgs[k].msg_hdr.msg_name,
+                            reinterpret_cast<const struct sockaddr*>(
+                                msgs[k].msg_hdr.msg_name),
                             flags);
         }
 
@@ -208,9 +206,6 @@ static int uv__udp_recvmmsg(uv_udp_t* handle, uv_buf_t* buf)
             handle->recv_cb(handle, 0, buf, NULL, UV_UDP_MMSG_FREE);
     }
     return nread;
-#else  /* __linux__ || ____FreeBSD__ */
-    return UV_ENOSYS;
-#endif /* __linux__ || ____FreeBSD__ */
 }
 
 static void uv__udp_recvmsg(uv_udp_t* handle)
@@ -251,7 +246,7 @@ static void uv__udp_recvmsg(uv_udp_t* handle)
         memset(&peer, 0, sizeof(peer));
         h.msg_name = &peer;
         h.msg_namelen = sizeof(peer);
-        h.msg_iov = (void*)&buf;
+        h.msg_iov = reinterpret_cast<struct iovec*>(&buf);
         h.msg_iovlen = 1;
 
         do {
@@ -737,7 +732,8 @@ int uv__udp_send(uv_udp_send_t* req, uv_udp_t* handle, const uv_buf_t bufs[],
 
     req->bufs = req->bufsml;
     if (nbufs > ARRAY_SIZE(req->bufsml))
-        req->bufs = uv__malloc(nbufs * sizeof(bufs[0]));
+        req->bufs =
+            reinterpret_cast<uv_buf_t*>(uv__malloc(nbufs * sizeof(bufs[0])));
 
     if (req->bufs == NULL) {
         uv__req_unregister(handle->loop, req);
