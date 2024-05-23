@@ -324,7 +324,7 @@ unsigned uv__kernel_version(void)
     unsigned major;
     unsigned minor;
     unsigned patch;
-    char v_sig[256];
+    std::array<char, 256> v_sig;
     char* needle;
 
     version =
@@ -338,8 +338,9 @@ unsigned uv__kernel_version(void)
      * For example:
      *   Ubuntu 5.15.0-79.86-generic 5.15.111
      */
-    if (0 == uv__slurp("/proc/version_signature", v_sig, sizeof(v_sig)))
-        if (3 == sscanf(v_sig, "Ubuntu %*s %u.%u.%u", &major, &minor, &patch))
+    if (0 == uv__slurp("/proc/version_signature", v_sig))
+        if (3 ==
+            sscanf(v_sig.data(), "Ubuntu %*s %u.%u.%u", &major, &minor, &patch))
             goto calculate_version;
 
     if (-1 == uname(&u))
@@ -1630,19 +1631,19 @@ done:
 
 int uv_resident_set_memory(size_t* rss)
 {
-    char buf[1024];
+    std::array<char, 1024> buf;
     const char* s;
     long val;
     int rc;
     int i;
 
     /* rss: 24th element */
-    rc = uv__slurp("/proc/self/stat", buf, sizeof(buf));
+    rc = uv__slurp("/proc/self/stat", buf);
     if (rc < 0)
         return rc;
 
     /* find the last ')' */
-    s = strrchr(buf, ')');
+    s = strrchr(buf.data(), ')');
     if (s == NULL)
         goto err;
 
@@ -1667,14 +1668,14 @@ err:
 int uv_uptime(double* uptime)
 {
     struct timespec now;
-    char buf[128];
+    std::array<char, 128> buf;
 
     /* Consult /proc/uptime when present (common case), or fall back to
      * clock_gettime. Why not always clock_gettime? It doesn't always return the
      * right result under OpenVZ and possibly other containerized environments.
      */
-    if (0 == uv__slurp("/proc/uptime", buf, sizeof(buf)))
-        if (1 == sscanf(buf, "%lf", uptime))
+    if (0 == uv__slurp("/proc/uptime", buf))
+        if (1 == sscanf(buf.data(), "%lf", uptime))
             return 0;
 
     if (clock_gettime(CLOCK_BOOTTIME, &now))
@@ -2075,12 +2076,12 @@ static uint64_t uv__read_proc_meminfo(const char* what)
 {
     uint64_t rc;
     char* p;
-    char buf[4096]; /* Large enough to hold all of /proc/meminfo. */
+    std::array<char, 4096> buf; /* Large enough to hold all of /proc/meminfo. */
 
-    if (uv__slurp("/proc/meminfo", buf, sizeof(buf)))
+    if (uv__slurp("/proc/meminfo", buf))
         return 0;
 
-    p = strstr(buf, what);
+    p = strstr(buf.data(), what);
 
     if (p == NULL)
         return 0;
@@ -2130,13 +2131,13 @@ uint64_t uv_get_total_memory(void)
 
 static uint64_t uv__read_uint64(const char* filename)
 {
-    char buf[32]; /* Large enough to hold an encoded uint64_t. */
+    std::array<char, 32> buf; /* Large enough to hold an encoded uint64_t. */
     uint64_t rc;
 
     rc = 0;
-    if (0 == uv__slurp(filename, buf, sizeof(buf)))
-        if (1 != sscanf(buf, "%" PRIu64, &rc))
-            if (0 == strcmp(buf, "max\n"))
+    if (0 == uv__slurp(filename, buf))
+        if (1 != sscanf(buf.data(), "%" PRIu64, &rc))
+            if (0 == strcmp(buf.data(), "max\n"))
                 rc = UINT64_MAX;
 
     return rc;
@@ -2313,7 +2314,7 @@ uint64_t uv_get_available_memory(void)
     uint64_t current;
     uint64_t total;
 
-    if (uv__slurp("/proc/self/cgroup", buf, sizeof(buf)))
+    if (uv__slurp("/proc/self/cgroup", buf))
         return 0;
 
     constrained = uv__get_cgroup_constrained_memory(buf);
@@ -2338,35 +2339,37 @@ uint64_t uv_get_available_memory(void)
 }
 
 
-static int uv__get_cgroupv2_constrained_cpu(const char* cgroup,
+static int uv__get_cgroupv2_constrained_cpu(std::span<char> cgroup,
                                             uv__cpu_constraint* constraint)
 {
-    char path[256];
-    char buf[1024];
+    std::string path(256, 0);
+    std::array<char, 1024> buf;
     unsigned int weight;
     int cgroup_size;
     const char* cgroup_trimmed;
     char quota_buf[16];
 
-    if (strncmp(cgroup, "0::/", 4) != 0)
+    if (strncmp(cgroup.data(), "0::/", 4) != 0)
         return UV_EINVAL;
 
     /* Trim ending \n by replacing it with a 0 */
-    cgroup_trimmed = cgroup + sizeof("0::/") - 1; /* Skip the prefix "0::/" */
+    cgroup_trimmed = cgroup.data() + sizeof("0::/") - 1; /* Skip the prefix "0::/" */
     cgroup_size = (int)strcspn(cgroup_trimmed, "\n"); /* Find the first slash */
 
     /* Construct the path to the cpu.max file */
-    snprintf(path,
-             sizeof(path),
+    snprintf(path.data(),
+             path.size(),
              "/sys/fs/cgroup/%.*s/cpu.max",
              cgroup_size,
              cgroup_trimmed);
 
     /* Read cpu.max */
-    if (uv__slurp(path, buf, sizeof(buf)) < 0)
+    if (uv__slurp(path, buf) < 0)
         return UV_EIO;
 
-    if (sscanf(buf, "%15s %llu", quota_buf, &constraint->period_length) != 2)
+    if (sscanf(
+            buf.data(), "%15s %llu", quota_buf, &constraint->period_length) !=
+        2)
         return UV_EINVAL;
 
     if (strncmp(quota_buf, "max", 3) == 0)
@@ -2375,17 +2378,17 @@ static int uv__get_cgroupv2_constrained_cpu(const char* cgroup,
         return UV_EINVAL;   // conversion failed
 
     /* Construct the path to the cpu.weight file */
-    snprintf(path,
-             sizeof(path),
+    snprintf(path.data(),
+             path.size(),
              "/sys/fs/cgroup/%.*s/cpu.weight",
              cgroup_size,
              cgroup_trimmed);
 
     /* Read cpu.weight */
-    if (uv__slurp(path, buf, sizeof(buf)) < 0)
+    if (uv__slurp(path, buf) < 0)
         return UV_EIO;
 
-    if (sscanf(buf, "%u", &weight) != 1)
+    if (sscanf(buf.data(), "%u", &weight) != 1)
         return UV_EINVAL;
 
     constraint->proportions = (double)weight / 100.0;
@@ -2393,11 +2396,11 @@ static int uv__get_cgroupv2_constrained_cpu(const char* cgroup,
     return 0;
 }
 
-static char* uv__cgroup1_find_cpu_controller(const char* cgroup,
+static char* uv__cgroup1_find_cpu_controller(std::span<char> cgroup,
                                              int* cgroup_size)
 {
     /* Seek to the cpu controller line. */
-    char* cgroup_cpu = const_cast<char*>(strstr(cgroup, ":cpu,"));
+    char* cgroup_cpu = const_cast<char*>(strstr(cgroup.data(), ":cpu,"));
 
     if (cgroup_cpu != NULL) {
         /* Skip the controller prefix to the start of the cgroup path. */
@@ -2409,11 +2412,11 @@ static char* uv__cgroup1_find_cpu_controller(const char* cgroup,
     return cgroup_cpu;
 }
 
-static int uv__get_cgroupv1_constrained_cpu(const char* cgroup,
+static int uv__get_cgroupv1_constrained_cpu(std::span<char> cgroup,
                                             uv__cpu_constraint* constraint)
 {
-    char path[256];
-    char buf[1024];
+    std::string path(256, 0);
+    std::array<char, 1024> buf;
     unsigned int shares;
     int cgroup_size;
     char* cgroup_cpu;
@@ -2424,44 +2427,44 @@ static int uv__get_cgroupv1_constrained_cpu(const char* cgroup,
         return UV_EIO;
 
     /* Construct the path to the cpu.cfs_quota_us file */
-    snprintf(path,
-             sizeof(path),
+    snprintf(path.data(),
+             path.size(),
              "/sys/fs/cgroup/%.*s/cpu.cfs_quota_us",
              cgroup_size,
              cgroup_cpu);
 
-    if (uv__slurp(path, buf, sizeof(buf)) < 0)
+    if (uv__slurp(path, buf) < 0)
         return UV_EIO;
 
-    if (sscanf(buf, "%lld", &constraint->quota_per_period) != 1)
+    if (sscanf(buf.data(), "%lld", &constraint->quota_per_period) != 1)
         return UV_EINVAL;
 
     /* Construct the path to the cpu.cfs_period_us file */
-    snprintf(path,
-             sizeof(path),
+    snprintf(path.data(),
+             path.size(),
              "/sys/fs/cgroup/%.*s/cpu.cfs_period_us",
              cgroup_size,
              cgroup_cpu);
 
     /* Read cpu.cfs_period_us */
-    if (uv__slurp(path, buf, sizeof(buf)) < 0)
+    if (uv__slurp(path, buf) < 0)
         return UV_EIO;
 
-    if (sscanf(buf, "%lld", &constraint->period_length) != 1)
+    if (sscanf(buf.data(), "%lld", &constraint->period_length) != 1)
         return UV_EINVAL;
 
     /* Construct the path to the cpu.shares file */
-    snprintf(path,
-             sizeof(path),
+    snprintf(path.data(),
+             path.size(),
              "/sys/fs/cgroup/%.*s/cpu.shares",
              cgroup_size,
              cgroup_cpu);
 
     /* Read cpu.shares */
-    if (uv__slurp(path, buf, sizeof(buf)) < 0)
+    if (uv__slurp(path, buf) < 0)
         return UV_EIO;
 
-    if (sscanf(buf, "%u", &shares) != 1)
+    if (sscanf(buf.data(), "%u", &shares) != 1)
         return UV_EINVAL;
 
     constraint->proportions = (double)shares / 1024.0;
@@ -2471,16 +2474,16 @@ static int uv__get_cgroupv1_constrained_cpu(const char* cgroup,
 
 int uv__get_constrained_cpu(uv__cpu_constraint* constraint)
 {
-    char cgroup[1024];
+    std::array<char, 1024> cgroup;
 
     /* Read the cgroup from /proc/self/cgroup */
-    if (uv__slurp("/proc/self/cgroup", cgroup, sizeof(cgroup)) < 0)
+    if (uv__slurp("/proc/self/cgroup", cgroup) < 0)
         return UV_EIO;
 
     /* Check if the system is using cgroup v2 by examining /proc/self/cgroup
      * The entry for cgroup v2 is always in the format "0::$PATH"
      * see https://docs.kernel.org/admin-guide/cgroup-v2.html */
-    if (strncmp(cgroup, "0::/", 4) == 0)
+    if (strncmp(cgroup.data(), "0::/", 4) == 0)
         return uv__get_cgroupv2_constrained_cpu(cgroup, constraint);
     else
         return uv__get_cgroupv1_constrained_cpu(cgroup, constraint);
@@ -2490,10 +2493,10 @@ int uv__get_constrained_cpu(uv__cpu_constraint* constraint)
 void uv_loadavg(double avg[3])
 {
     struct sysinfo info;
-    char buf[128]; /* Large enough to hold all of /proc/loadavg. */
+    std::array<char, 128> buf; /* Large enough to hold all of /proc/loadavg. */
 
-    if (0 == uv__slurp("/proc/loadavg", buf, sizeof(buf)))
-        if (3 == sscanf(buf, "%lf %lf %lf", &avg[0], &avg[1], &avg[2]))
+    if (0 == uv__slurp("/proc/loadavg", buf))
+        if (3 == sscanf(buf.data(), "%lf %lf %lf", &avg[0], &avg[1], &avg[2]))
             return;
 
     if (sysinfo(&info) < 0)

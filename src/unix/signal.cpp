@@ -171,7 +171,7 @@ static void uv__signal_unlock_and_unblock(sigset_t* saved_sigmask)
 static uv_signal_t* uv__signal_first_handle(int signum)
 {
     /* This function must be called with the signal lock held. */
-    uv_signal_t lookup;
+    uv_signal_t lookup{};
     uv_signal_t* handle;
 
     lookup.signum = signum;
