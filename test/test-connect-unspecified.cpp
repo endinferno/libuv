@@ -35,10 +35,10 @@ static void connect_6(uv_connect_t* req, int status)
 TEST_IMPL(connect_unspecified)
 {
     uv_loop_t* loop;
-    uv_tcp_t socket4;
+    uv_tcp_t socket4{};
     struct sockaddr_in addr4;
     uv_connect_t connect4;
-    uv_tcp_t socket6;
+    uv_tcp_t socket6{};
     struct sockaddr_in6 addr6;
     uv_connect_t connect6;
 

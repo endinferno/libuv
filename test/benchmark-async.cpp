@@ -69,7 +69,7 @@ static void main_async_cb(uv_async_t* handle)
 
 static void worker(void* arg)
 {
-    struct ctx* ctx = arg;
+    struct ctx* ctx = reinterpret_cast<struct ctx*>(arg);
     ASSERT_OK(uv_async_send(&ctx->main_async));
     ASSERT_OK(uv_run(&ctx->loop, UV_RUN_DEFAULT));
     uv_loop_close(&ctx->loop);
@@ -84,7 +84,8 @@ static int test_async(int nthreads)
     uint64_t time;
     int i;
 
-    threads = calloc(nthreads, sizeof(threads[0]));
+    threads =
+        reinterpret_cast<struct ctx*>(calloc(nthreads, sizeof(threads[0])));
     ASSERT_NOT_NULL(threads);
 
     for (i = 0; i < nthreads; i++) {

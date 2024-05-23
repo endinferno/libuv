@@ -54,7 +54,7 @@ static void timer_cb(uv_timer_t* handle)
 BENCHMARK_IMPL(queue_work)
 {
     char fmtbuf[2][32];
-    uv_timer_t timer_handle;
+    uv_timer_t timer_handle{};
     uv_work_t work;
     uv_loop_t* loop;
     int timeout;

@@ -34,9 +34,9 @@ static uv_loop_t* loop;
 
 static int server_closed;
 static stream_type serverType;
-static uv_tcp_t tcpServer;
-static uv_udp_t udpServer;
-static uv_pipe_t pipeServer;
+static uv_tcp_t tcpServer{};
+static uv_udp_t udpServer{};
+static uv_pipe_t pipeServer{};
 static uv_handle_t* server;
 static uv_udp_send_t* send_freelist;
 
@@ -93,7 +93,7 @@ static void after_read(uv_stream_t* handle, ssize_t nread, const uv_buf_t* buf)
         ASSERT_EQ(nread, UV_EOF);
 
         free(buf->base);
-        sreq = malloc(sizeof *sreq);
+        sreq = reinterpret_cast<uv_shutdown_t*>(malloc(sizeof *sreq));
         if (uv_is_writable(handle)) {
             ASSERT_OK(uv_shutdown(sreq, handle, after_shutdown));
         }
@@ -144,7 +144,10 @@ static void after_read(uv_stream_t* handle, ssize_t nread, const uv_buf_t* buf)
     }
 
     if (shutdown)
-        ASSERT_OK(uv_shutdown(malloc(sizeof *sreq), handle, on_shutdown));
+        ASSERT_OK(
+            uv_shutdown(reinterpret_cast<uv_shutdown_t*>(malloc(sizeof *sreq)),
+                        handle,
+                        on_shutdown));
 }
 
 
@@ -157,7 +160,7 @@ static void on_close(uv_handle_t* peer)
 static void echo_alloc(uv_handle_t* handle, size_t suggested_size,
                        uv_buf_t* buf)
 {
-    buf->base = malloc(suggested_size);
+    buf->base = reinterpret_cast<char*>(malloc(suggested_size));
     buf->len = suggested_size;
 }
 
@@ -182,14 +185,14 @@ static void on_connection(uv_stream_t* server, int status)
 
     switch (serverType) {
     case TCP:
-        stream = malloc(sizeof(uv_tcp_t));
+        stream = reinterpret_cast<uv_stream_t*>(malloc(sizeof(uv_tcp_t)));
         ASSERT_NOT_NULL(stream);
         r = uv_tcp_init(loop, (uv_tcp_t*)stream);
         ASSERT_OK(r);
         break;
 
     case PIPE:
-        stream = malloc(sizeof(uv_pipe_t));
+        stream = reinterpret_cast<uv_stream_t*>(malloc(sizeof(uv_pipe_t)));
         ASSERT_NOT_NULL(stream);
         r = uv_pipe_init(loop, (uv_pipe_t*)stream, 0);
         ASSERT_OK(r);
@@ -218,9 +221,9 @@ static uv_udp_send_t* send_alloc(void)
 {
     uv_udp_send_t* req = send_freelist;
     if (req != NULL)
-        send_freelist = req->data;
+        send_freelist = reinterpret_cast<uv_udp_send_t*>(req->data);
     else
-        req = malloc(sizeof(*req));
+        req = reinterpret_cast<uv_udp_send_t*>(malloc(sizeof(*req)));
     return req;
 }
 

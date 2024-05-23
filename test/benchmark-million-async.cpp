@@ -83,7 +83,7 @@ static void timer_cb(uv_timer_t* handle)
 BENCHMARK_IMPL(million_async)
 {
     char fmtbuf[3][32];
-    uv_timer_t timer_handle;
+    uv_timer_t timer_handle{};
     uv_async_t* handle;
     uv_loop_t* loop;
     int timeout;
@@ -92,7 +92,8 @@ BENCHMARK_IMPL(million_async)
     loop = uv_default_loop();
     timeout = 5000;
 
-    container = malloc(sizeof(*container));
+    container =
+        reinterpret_cast<struct async_container*>(malloc(sizeof(*container)));
     ASSERT_NOT_NULL(container);
     container->async_events = 0;
     container->handles_seen = 0;

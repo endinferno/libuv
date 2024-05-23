@@ -207,7 +207,7 @@ typedef struct
  */
 static void* dowait(void* data)
 {
-    dowait_args* args = data;
+    dowait_args* args = reinterpret_cast<dowait_args*>(data);
 
     int i, r;
     process_info_t* p;

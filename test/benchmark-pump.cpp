@@ -46,8 +46,8 @@ static void buf_free(const uv_buf_t* buf);
 
 static uv_loop_t* loop;
 
-static uv_tcp_t tcpServer;
-static uv_pipe_t pipeServer;
+static uv_tcp_t tcpServer{};
+static uv_pipe_t pipeServer{};
 static uv_stream_t* server;
 static struct sockaddr_in listen_addr;
 static struct sockaddr_in connect_addr;
@@ -76,7 +76,7 @@ static stream_type type;
 static uv_tcp_t tcp_write_handles[MAX_WRITE_HANDLES];
 static uv_pipe_t pipe_write_handles[MAX_WRITE_HANDLES];
 
-static uv_timer_t timer_handle;
+static uv_timer_t timer_handle{};
 
 
 static double gbit(int64_t bytes, int64_t passed_ms)
@@ -375,7 +375,7 @@ static void buf_alloc(uv_handle_t* handle, size_t size, uv_buf_t* buf)
     if (ab != NULL)
         buf_freelist = ab->next;
     else {
-        ab = malloc(size + sizeof(*ab));
+        ab = reinterpret_cast<buf_list_t*>(malloc(size + sizeof(*ab)));
         ab->uv_buf_t.len = size;
         ab->uv_buf_t.base = (char*)(ab + 1);
     }

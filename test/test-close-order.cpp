@@ -26,9 +26,9 @@ static int check_cb_called;
 static int timer_cb_called;
 static int close_cb_called;
 
-static uv_check_t check_handle;
-static uv_timer_t timer_handle1;
-static uv_timer_t timer_handle2;
+static uv_check_t check_handle{};
+static uv_timer_t timer_handle1{};
+static uv_timer_t timer_handle2{};
 
 
 static void close_cb(uv_handle_t* handle)

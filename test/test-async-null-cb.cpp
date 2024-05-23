@@ -23,8 +23,8 @@
 #include "uv.h"
 #include <string.h>
 
-static uv_async_t async_handle;
-static uv_check_t check_handle;
+static uv_async_t async_handle{};
+static uv_check_t check_handle{};
 static int check_cb_called;
 static uv_thread_t thread;
 

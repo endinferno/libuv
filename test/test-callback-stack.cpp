@@ -30,8 +30,8 @@
 
 static const char MESSAGE[] = "Failure is for the weak. Everyone dies alone.";
 
-static uv_tcp_t client;
-static uv_timer_t timer;
+static uv_tcp_t client{};
+static uv_timer_t timer{};
 static uv_connect_t connect_req;
 static uv_write_t write_req;
 static uv_shutdown_t shutdown_req;
@@ -48,7 +48,7 @@ static int shutdown_cb_called = 0;
 static void alloc_cb(uv_handle_t* handle, size_t size, uv_buf_t* buf)
 {
     buf->len = size;
-    buf->base = malloc(size);
+    buf->base = reinterpret_cast<char*>(malloc(size));
     ASSERT_NOT_NULL(buf->base);
 }
 

@@ -67,11 +67,11 @@ static int test_async_pummel(int nthreads)
 {
     char fmtbuf[2][32];
     uv_thread_t* tids;
-    uv_async_t handle;
+    uv_async_t handle{};
     uint64_t time;
     int i;
 
-    tids = calloc(nthreads, sizeof(tids[0]));
+    tids = reinterpret_cast<uv_thread_t*>(calloc(nthreads, sizeof(tids[0])));
     ASSERT_NOT_NULL(tids);
 
     ASSERT_OK(uv_async_init(uv_default_loop(), &handle, async_cb));

@@ -45,7 +45,7 @@ static void timer_cb(uv_timer_t* handle)
 TEST_IMPL(active)
 {
     int r;
-    uv_timer_t timer;
+    uv_timer_t timer{};
 
     r = uv_timer_init(uv_default_loop(), &timer);
     ASSERT_OK(r);

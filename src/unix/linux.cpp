@@ -767,7 +767,8 @@ static struct uv__io_uring_sqe* uv__iou_get_sqe(struct uv__iou* iou,
     if (iou->ringfd == -1)
         return NULL;
 
-    head = std::atomic_load_explicit(iou->sqhead, std::memory_order_acquire);
+    std::atomic_ref<uint32_t> sqhead_atomic(*iou->sqhead);
+    head = sqhead_atomic.load(std::memory_order_acquire);
     tail = *iou->sqtail;
     mask = iou->sqmask;
 
@@ -798,10 +799,11 @@ static void uv__iou_submit(struct uv__iou* iou)
 {
     uint32_t flags;
 
-    std::atomic_store_explicit(
-        iou->sqtail, *iou->sqtail + 1, std::memory_order_release);
+    std::atomic_ref<uint32_t> sqtail_atomic(*iou->sqtail);
+    sqtail_atomic.store(*iou->sqtail + 1, std::memory_order_release);
 
-    flags = std::atomic_load_explicit(iou->sqflags, std::memory_order_acquire);
+    std::atomic_ref<uint32_t> sqflags_atomic(*iou->sqflags);
+    flags = sqflags_atomic.load(std::memory_order_acquire);
 
     if (flags & UV__IORING_SQ_NEED_WAKEUP)
         if (uv__io_uring_enter(iou->ringfd, 0, 0, UV__IORING_ENTER_SQ_WAKEUP))
@@ -1150,7 +1152,8 @@ static void uv__poll_io_uring(uv_loop_t* loop, struct uv__iou* iou)
     int rc;
 
     head = *iou->cqhead;
-    tail = std::atomic_load_explicit(iou->cqtail, std::memory_order_acquire);
+    std::atomic_ref<uint32_t> cqtail_atomic(*iou->cqtail);
+    tail = cqtail_atomic.load(std::memory_order_acquire);
     mask = iou->cqmask;
     cqe = reinterpret_cast<struct uv__io_uring_cqe*>(iou->cqe);
     nevents = 0;
@@ -1186,12 +1189,14 @@ static void uv__poll_io_uring(uv_loop_t* loop, struct uv__iou* iou)
         nevents++;
     }
 
-    std::atomic_store_explicit(iou->cqhead, tail, std::memory_order_release);
+    std::atomic_ref<uint32_t> cqhead_atomic(*iou->cqhead);
+    cqhead_atomic.store(tail, std::memory_order_release);
 
     /* Check whether CQE's overflowed, if so enter the kernel to make them
      * available. Don't grab them immediately but in the next loop iteration to
      * avoid loop starvation. */
-    flags = std::atomic_load_explicit(iou->sqflags, std::memory_order_acquire);
+    std::atomic_ref<uint32_t> sqflags_atomic(*iou->sqflags);
+    flags = sqflags_atomic.load(std::memory_order_acquire);
 
     if (flags & UV__IORING_SQ_CQ_OVERFLOW) {
         do
@@ -2353,7 +2358,8 @@ static int uv__get_cgroupv2_constrained_cpu(std::span<char> cgroup,
         return UV_EINVAL;
 
     /* Trim ending \n by replacing it with a 0 */
-    cgroup_trimmed = cgroup.data() + sizeof("0::/") - 1; /* Skip the prefix "0::/" */
+    cgroup_trimmed =
+        cgroup.data() + sizeof("0::/") - 1; /* Skip the prefix "0::/" */
     cgroup_size = (int)strcspn(cgroup_trimmed, "\n"); /* Find the first slash */
 
     /* Construct the path to the cpu.max file */

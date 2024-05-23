@@ -51,7 +51,7 @@ static void read_cb(uv_stream_t* handle, ssize_t nread, const uv_buf_t* buf)
 
 TEST_IMPL(close_fd)
 {
-    uv_pipe_t pipe_handle;
+    uv_pipe_t pipe_handle{};
     uv_fs_t req;
     uv_buf_t bufs[1];
     uv_file fd[2];
@@ -66,11 +66,7 @@ TEST_IMPL(close_fd)
     ASSERT_EQ(1, uv_fs_write(NULL, &req, fd[1], bufs, 1, -1, NULL));
     ASSERT_EQ(1, req.result);
     uv_fs_req_cleanup(&req);
-#ifdef _WIN32
-    ASSERT_OK(_close(fd[1]));
-#else
     ASSERT_OK(close(fd[1]));
-#endif
     fd[1] = -1;
     ASSERT_OK(uv_read_start((uv_stream_t*)&pipe_handle, alloc_cb, read_cb));
     ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));

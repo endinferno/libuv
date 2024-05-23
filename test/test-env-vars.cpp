@@ -145,7 +145,7 @@ TEST_IMPL(env_vars)
         n = i * 32768;
         size = n + 1;
 
-        p = malloc(size);
+        p = reinterpret_cast<char*>(malloc(size));
         ASSERT_NOT_NULL(p);
 
         memset(p, 'x', n);

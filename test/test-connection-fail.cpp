@@ -26,12 +26,12 @@
 #include <stdlib.h>
 
 
-static uv_tcp_t tcp;
+static uv_tcp_t tcp{};
 static uv_connect_t req;
 static int connect_cb_calls;
 static int close_cb_calls;
 
-static uv_timer_t timer;
+static uv_timer_t timer{};
 static int timer_close_cb_calls;
 static int timer_cb_calls;
 

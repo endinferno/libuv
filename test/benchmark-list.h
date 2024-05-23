@@ -19,6 +19,8 @@
  * IN THE SOFTWARE.
  */
 
+#include "runner.h"
+
 BENCHMARK_DECLARE(sizes)
 BENCHMARK_DECLARE(loop_count)
 BENCHMARK_DECLARE(loop_count_timed)

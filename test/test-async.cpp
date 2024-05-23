@@ -27,8 +27,8 @@
 static uv_thread_t thread;
 static uv_mutex_t mutex;
 
-static uv_prepare_t prepare;
-static uv_async_t async;
+static uv_prepare_t prepare{};
+static uv_async_t async{};
 
 static volatile int async_cb_called;
 static int prepare_cb_called;

@@ -156,7 +156,8 @@ static void readlink_cb(uv_fs_t* req)
 {
     ASSERT_EQ(req->fs_type, UV_FS_READLINK);
     ASSERT_OK(req->result);
-    ASSERT_OK(strcmp(req->ptr, "test_file_symlink2"));
+    ASSERT_OK(
+        strcmp(reinterpret_cast<const char*>(req->ptr), "test_file_symlink2"));
     readlink_cb_count++;
     uv_fs_req_cleanup(req);
 }
@@ -171,7 +172,8 @@ static void realpath_cb(uv_fs_t* req)
 
     uv_cwd(test_file_abs_buf, &test_file_abs_size);
     strcat(test_file_abs_buf, "/test_file");
-    ASSERT_OK(strcmp(req->ptr, test_file_abs_buf));
+    ASSERT_OK(
+        strcmp(reinterpret_cast<const char*>(req->ptr), test_file_abs_buf));
     realpath_cb_count++;
     uv_fs_req_cleanup(req);
 }
@@ -255,7 +257,7 @@ static void unlink_cb(uv_fs_t* req)
 
 static void fstat_cb(uv_fs_t* req)
 {
-    uv_stat_t* s = req->ptr;
+    uv_stat_t* s = reinterpret_cast<uv_stat_t*>(req->ptr);
     ASSERT_EQ(req->fs_type, UV_FS_FSTAT);
     ASSERT_OK(req->result);
     ASSERT_EQ(s->st_size, sizeof(test_buf));
@@ -271,7 +273,7 @@ static void statfs_cb(uv_fs_t* req)
     ASSERT_EQ(req->fs_type, UV_FS_STATFS);
     ASSERT_OK(req->result);
     ASSERT_NOT_NULL(req->ptr);
-    stats = req->ptr;
+    stats = reinterpret_cast<uv_statfs_t*>(req->ptr);
 
     ASSERT_UINT64_GT(stats->f_type, 0);
 
@@ -803,7 +805,7 @@ static void utime_cb(uv_fs_t* req)
     ASSERT_OK(req->result);
     ASSERT_EQ(req->fs_type, UV_FS_UTIME);
 
-    c = req->data;
+    c = reinterpret_cast<utime_check_t*>(req->data);
     check_utime(c->path, c->atime, c->mtime, /* test_lutime */ 0);
 
     uv_fs_req_cleanup(req);
@@ -819,7 +821,7 @@ static void futime_cb(uv_fs_t* req)
     ASSERT_OK(req->result);
     ASSERT_EQ(req->fs_type, UV_FS_FUTIME);
 
-    c = req->data;
+    c = reinterpret_cast<utime_check_t*>(req->data);
     check_utime(c->path, c->atime, c->mtime, /* test_lutime */ 0);
 
     uv_fs_req_cleanup(req);
@@ -834,7 +836,7 @@ static void lutime_cb(uv_fs_t* req)
     ASSERT_OK(req->result);
     ASSERT_EQ(req->fs_type, UV_FS_LUTIME);
 
-    c = req->data;
+    c = reinterpret_cast<utime_check_t*>(req->data);
     check_utime(c->path, c->atime, c->mtime, /* test_lutime */ 1);
 
     uv_fs_req_cleanup(req);
@@ -1388,7 +1390,7 @@ TEST_IMPL(fs_fstat)
     ASSERT_OK(fstat(file, &t));
     ASSERT_OK(uv_fs_fstat(NULL, &req, file, NULL));
     ASSERT_OK(req.result);
-    s = req.ptr;
+    s = reinterpret_cast<uv_stat_t*>(req.ptr);
     /* If statx() is supported, the birth time should be equal to the change
      * time because we just created the file. On older kernels, it's set to
      * zero.
@@ -1408,7 +1410,7 @@ TEST_IMPL(fs_fstat)
     r = uv_fs_fstat(NULL, &req, file, NULL);
     ASSERT_OK(r);
     ASSERT_OK(req.result);
-    s = req.ptr;
+    s = reinterpret_cast<uv_stat_t*>(req.ptr);
     ASSERT_EQ(s->st_size, sizeof(test_buf));
 
     r = fstat(file, &t);
@@ -2054,12 +2056,14 @@ TEST_IMPL(fs_symlink)
 
     r = uv_fs_readlink(NULL, &req, "test_file_symlink_symlink", NULL);
     ASSERT_OK(r);
-    ASSERT_OK(strcmp(req.ptr, "test_file_symlink"));
+    ASSERT_OK(
+        strcmp(reinterpret_cast<const char*>(req.ptr), "test_file_symlink"));
     uv_fs_req_cleanup(&req);
 
     r = uv_fs_realpath(NULL, &req, "test_file_symlink_symlink", NULL);
     ASSERT_OK(r);
-    ASSERT_OK(strcmp(req.ptr, test_file_abs_buf));
+    ASSERT_OK(
+        strcmp(reinterpret_cast<const char*>(req.ptr), test_file_abs_buf));
     uv_fs_req_cleanup(&req);
 
     /* async link */
@@ -2171,12 +2175,12 @@ int test_symlink_dir_impl(int type)
 
     r = uv_fs_readlink(NULL, &req, "test_dir_symlink", NULL);
     ASSERT_OK(r);
-    ASSERT_OK(strcmp(req.ptr, test_dir));
+    ASSERT_OK(strcmp(reinterpret_cast<const char*>(req.ptr), test_dir));
     uv_fs_req_cleanup(&req);
 
     r = uv_fs_realpath(NULL, &req, "test_dir_symlink", NULL);
     ASSERT_OK(r);
-    ASSERT_OK(strcmp(req.ptr, test_dir_abs_buf));
+    ASSERT_OK(strcmp(reinterpret_cast<const char*>(req.ptr), test_dir_abs_buf));
     uv_fs_req_cleanup(&req);
 
     r = uv_fs_open(NULL,

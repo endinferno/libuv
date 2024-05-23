@@ -29,8 +29,8 @@
 #define NUM_TICKS2 (2 * 1000 * 1000 * 100)
 
 static unsigned long ticks;
-static uv_idle_t idle_handle;
-static uv_timer_t timer_handle;
+static uv_idle_t idle_handle{};
+static uv_timer_t timer_handle{};
 
 
 static void idle_cb(uv_idle_t* handle)

@@ -31,7 +31,7 @@ typedef struct
     uv_shutdown_t shutdown_req;
 } conn_rec;
 
-static uv_tcp_t tcp_server;
+static uv_tcp_t tcp_server{};
 
 static void connection_cb(uv_stream_t* stream, int status);
 static void alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf);
@@ -48,7 +48,7 @@ static void connection_cb(uv_stream_t* stream, int status)
     ASSERT_OK(status);
     ASSERT_PTR_EQ(stream, (uv_stream_t*)&tcp_server);
 
-    conn = malloc(sizeof *conn);
+    conn = reinterpret_cast<conn_rec*>(malloc(sizeof *conn));
     ASSERT_NOT_NULL(conn);
 
     r = uv_tcp_init(stream->loop, &conn->handle);

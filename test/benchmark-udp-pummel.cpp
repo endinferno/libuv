@@ -150,7 +150,7 @@ static void timeout_cb(uv_timer_t* timer)
 static int pummel(unsigned int n_senders, unsigned int n_receivers,
                   unsigned long timeout)
 {
-    uv_timer_t timer_handle;
+    uv_timer_t timer_handle{};
     uint64_t duration;
     uv_loop_t* loop;
     unsigned int i;
@@ -182,11 +182,11 @@ static int pummel(unsigned int n_senders, unsigned int n_receivers,
         uv_unref((uv_handle_t*)&s->udp_handle);
     }
 
-    bufs[0] = uv_buf_init(&EXPECTED[0], 10);
-    bufs[1] = uv_buf_init(&EXPECTED[10], 10);
-    bufs[2] = uv_buf_init(&EXPECTED[20], 10);
-    bufs[3] = uv_buf_init(&EXPECTED[30], 10);
-    bufs[4] = uv_buf_init(&EXPECTED[40], 5);
+    bufs[0] = uv_buf_init(const_cast<char*>(&EXPECTED[0]), 10);
+    bufs[1] = uv_buf_init(const_cast<char*>(&EXPECTED[10]), 10);
+    bufs[2] = uv_buf_init(const_cast<char*>(&EXPECTED[20]), 10);
+    bufs[3] = uv_buf_init(const_cast<char*>(&EXPECTED[30]), 10);
+    bufs[4] = uv_buf_init(const_cast<char*>(&EXPECTED[40]), 5);
 
     for (i = 0; i < n_senders; i++) {
         struct sender_state* s = senders + i;

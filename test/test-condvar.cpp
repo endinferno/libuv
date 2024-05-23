@@ -74,7 +74,7 @@ void worker_config_destroy(worker_config* wc)
  * Partner should call wait then signal. */
 static void worker(void* arg)
 {
-    worker_config* c = arg;
+    worker_config* c = reinterpret_cast<worker_config*>(arg);
     c->signal_cond(c, &c->posted_1);
     c->wait_cond(c, &c->posted_2);
 }
