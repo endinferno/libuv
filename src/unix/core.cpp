@@ -46,51 +46,15 @@
 #include <time.h> /* clock_gettime */
 #include <unistd.h>
 
-#ifdef __sun
-#    include <sys/filio.h>
-#    include <sys/wait.h>
-#endif
+#include <span>
+#include <string>
 
-#if defined(__APPLE__)
-#    include <sys/filio.h>
-#endif /* defined(__APPLE__) */
-
-
-#if defined(__APPLE__) && !TARGET_OS_IPHONE
-#    include <crt_externs.h>
-#    include <mach-o/dyld.h> /* _NSGetExecutablePath */
-#    define environ (*_NSGetEnviron())
-#else  /* defined(__APPLE__) && !TARGET_OS_IPHONE */
 extern char** environ;
-#endif /* !(defined(__APPLE__) && !TARGET_OS_IPHONE) */
 
-
-#if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__NetBSD__) || \
-    defined(__OpenBSD__)
-#    include <sys/filio.h>
-#    include <sys/param.h>
-#    include <sys/sysctl.h>
-#    include <sys/wait.h>
-#    if defined(__FreeBSD__)
-#        include <sys/cpuset.h>
-#        define uv__accept4 accept4
-#    endif
-#    if defined(__NetBSD__)
-#        define uv__accept4(a, b, c, d) paccept((a), (b), (c), NULL, (d))
-#    endif
-#endif
-
-#if defined(__MVS__)
-#    include "zos-sys-info.h"
-#    include <sys/ioctl.h>
-#endif
-
-#if defined(__linux__)
-#    include <sched.h>
-#    include <sys/syscall.h>
-#    define gettid() syscall(SYS_gettid)
-#    define uv__accept4 accept4
-#endif
+#include <sched.h>
+#include <sys/syscall.h>
+#define gettid() syscall(SYS_gettid)
+#define uv__accept4 accept4
 
 #if defined(__linux__) && defined(__SANITIZE_THREAD__) && defined(__clang__)
 #    include <sanitizer/linux_syscall_hooks.h>
@@ -1021,12 +985,12 @@ int uv_getrusage(uv_rusage_t* rusage)
 }
 
 
-int uv__open_cloexec(const char* path, int flags)
+int uv__open_cloexec(const std::string& path, int flags)
 {
 #if defined(O_CLOEXEC)
     int fd;
 
-    fd = open(path, flags | O_CLOEXEC);
+    fd = open(path.c_str(), flags | O_CLOEXEC);
     if (fd == -1)
         return UV__ERR(errno);
 
@@ -1050,19 +1014,19 @@ int uv__open_cloexec(const char* path, int flags)
 }
 
 
-int uv__slurp(const char* filename, char* buf, size_t len)
+int uv__slurp(const std::string& filename, std::span<char> buf)
 {
     ssize_t n;
     int fd;
 
-    assert(len > 0);
+    assert(buf.size() > 0);
 
     fd = uv__open_cloexec(filename, O_RDONLY);
     if (fd < 0)
         return fd;
 
     do
-        n = read(fd, buf, len - 1);
+        n = read(fd, buf.data(), buf.size() - 1);
     while (n == -1 && errno == EINTR);
 
     if (uv__close_nocheckstdio(fd))

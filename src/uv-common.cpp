@@ -957,7 +957,7 @@ void uv_library_shutdown(void)
     static std::atomic<int> was_shutdown;
 
     if (std::atomic_exchange_explicit(
-            &was_shutdown, 1, std::memory_order::memory_order_relaxed))
+            &was_shutdown, 1, std::memory_order_relaxed))
         return;
 
     uv__process_title_cleanup();

@@ -55,7 +55,9 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <array>
 #include <atomic>
+#include <span>
 
 #ifndef __NR_io_uring_setup
 #    define __NR_io_uring_setup 425
@@ -325,8 +327,8 @@ unsigned uv__kernel_version(void)
     char v_sig[256];
     char* needle;
 
-    version = std::atomic_load_explicit(
-        &cached_version, std::memory_order::memory_order_relaxed);
+    version =
+        std::atomic_load_explicit(&cached_version, std::memory_order_relaxed);
     if (version != 0)
         return version;
 
@@ -383,7 +385,7 @@ unsigned uv__kernel_version(void)
 calculate_version:
     version = major * 65536 + minor * 256 + patch;
     std::atomic_store_explicit(
-        &cached_version, version, std::memory_order::memory_order_relaxed);
+        &cached_version, version, std::memory_order_relaxed);
 
     return version;
 }
@@ -465,8 +467,7 @@ static int uv__use_io_uring(void)
     char* val;
     int use;
 
-    use = std::atomic_load_explicit(&use_io_uring,
-                                    std::memory_order::memory_order_relaxed);
+    use = std::atomic_load_explicit(&use_io_uring, std::memory_order_relaxed);
 
     if (use == 0) {
         use = uv__kernel_version() >=
@@ -482,7 +483,7 @@ static int uv__use_io_uring(void)
             use = atoi(val) ? 1 : -1;
 
         std::atomic_store_explicit(
-            &use_io_uring, use, std::memory_order::memory_order_relaxed);
+            &use_io_uring, use, std::memory_order_relaxed);
     }
 
     return use > 0;
@@ -765,8 +766,7 @@ static struct uv__io_uring_sqe* uv__iou_get_sqe(struct uv__iou* iou,
     if (iou->ringfd == -1)
         return NULL;
 
-    head = std::atomic_load_explicit(iou->sqhead,
-                                     std::memory_order::memory_order_acquire);
+    head = std::atomic_load_explicit(iou->sqhead, std::memory_order_acquire);
     tail = *iou->sqtail;
     mask = iou->sqmask;
 
@@ -798,10 +798,9 @@ static void uv__iou_submit(struct uv__iou* iou)
     uint32_t flags;
 
     std::atomic_store_explicit(
-        iou->sqtail, *iou->sqtail + 1, std::memory_order::memory_order_release);
+        iou->sqtail, *iou->sqtail + 1, std::memory_order_release);
 
-    flags = std::atomic_load_explicit(iou->sqflags,
-                                      std::memory_order::memory_order_acquire);
+    flags = std::atomic_load_explicit(iou->sqflags, std::memory_order_acquire);
 
     if (flags & UV__IORING_SQ_NEED_WAKEUP)
         if (uv__io_uring_enter(iou->ringfd, 0, 0, UV__IORING_ENTER_SQ_WAKEUP))
@@ -1150,8 +1149,7 @@ static void uv__poll_io_uring(uv_loop_t* loop, struct uv__iou* iou)
     int rc;
 
     head = *iou->cqhead;
-    tail = std::atomic_load_explicit(iou->cqtail,
-                                     std::memory_order::memory_order_acquire);
+    tail = std::atomic_load_explicit(iou->cqtail, std::memory_order_acquire);
     mask = iou->cqmask;
     cqe = reinterpret_cast<struct uv__io_uring_cqe*>(iou->cqe);
     nevents = 0;
@@ -1187,14 +1185,12 @@ static void uv__poll_io_uring(uv_loop_t* loop, struct uv__iou* iou)
         nevents++;
     }
 
-    std::atomic_store_explicit(
-        iou->cqhead, tail, std::memory_order::memory_order_release);
+    std::atomic_store_explicit(iou->cqhead, tail, std::memory_order_release);
 
     /* Check whether CQE's overflowed, if so enter the kernel to make them
      * available. Don't grab them immediately but in the next loop iteration to
      * avoid loop starvation. */
-    flags = std::atomic_load_explicit(iou->sqflags,
-                                      std::memory_order::memory_order_acquire);
+    flags = std::atomic_load_explicit(iou->sqflags, std::memory_order_acquire);
 
     if (flags & UV__IORING_SQ_CQ_OVERFLOW) {
         do
@@ -1610,8 +1606,8 @@ uint64_t uv__hrtime(uv_clocktype_t type)
     if (type != UV_CLOCK_FAST)
         goto done;
 
-    clock_id = std::atomic_load_explicit(
-        &fast_clock_id, std::memory_order::memory_order_relaxed);
+    clock_id =
+        std::atomic_load_explicit(&fast_clock_id, std::memory_order_relaxed);
     if (clock_id != -1)
         goto done;
 
@@ -1621,7 +1617,7 @@ uint64_t uv__hrtime(uv_clocktype_t type)
             clock_id = CLOCK_MONOTONIC_COARSE;
 
     std::atomic_store_explicit(
-        &fast_clock_id, clock_id, std::memory_order::memory_order_relaxed);
+        &fast_clock_id, clock_id, std::memory_order_relaxed);
 
 done:
 
@@ -1930,7 +1926,7 @@ nocpuinfo:
 
         (*ci)[i++] = (uv_cpu_info_t){
             .model = p + c->model * sizeof(*model),
-            .speed = c->freq / 1000,
+            .speed = static_cast<int>(c->freq / 1000),
             /* Note: sysconf(_SC_CLK_TCK) is fixed at 100 Hz,
              * therefore the multiplier is always 1000/100 = 10.
              */
@@ -2151,12 +2147,12 @@ static uint64_t uv__read_uint64(const char* filename)
  * finds the location and length of the memory controller mount path.
  * This disregards the leading / for easy concatenation of paths.
  * Returns NULL if the memory controller wasn't found. */
-static char* uv__cgroup1_find_memory_controller(char buf[static 1024], int* n)
+static char* uv__cgroup1_find_memory_controller(std::span<char> buf, int* n)
 {
     char* p;
 
     /* Seek to the memory controller line. */
-    p = strchr(buf, ':');
+    p = strchr(buf.data(), ':');
     while (p != NULL && strncmp(p, ":memory:", 8)) {
         p = strchr(p, '\n');
         if (p != NULL)
@@ -2172,7 +2168,7 @@ static char* uv__cgroup1_find_memory_controller(char buf[static 1024], int* n)
     return p;
 }
 
-static void uv__get_cgroup1_memory_limits(char buf[static 1024], uint64_t* high,
+static void uv__get_cgroup1_memory_limits(std::span<char> buf, uint64_t* high,
                                           uint64_t* max)
 {
     char filename[4097];
@@ -2219,7 +2215,7 @@ update_limits:
         *max = UINT64_MAX;
 }
 
-static void uv__get_cgroup2_memory_limits(char buf[static 1024], uint64_t* high,
+static void uv__get_cgroup2_memory_limits(std::span<char> buf, uint64_t* high,
                                           uint64_t* max)
 {
     char filename[4097];
@@ -2227,7 +2223,7 @@ static void uv__get_cgroup2_memory_limits(char buf[static 1024], uint64_t* high,
     int n;
 
     /* Find out where the controller is mounted. */
-    p = buf + strlen("0::/");
+    p = buf.data() + strlen("0::/");
     n = (int)strcspn(p, "\n");
 
     /* Read the memory limits of the controller. */
@@ -2239,13 +2235,13 @@ static void uv__get_cgroup2_memory_limits(char buf[static 1024], uint64_t* high,
     *high = uv__read_uint64(filename);
 }
 
-static uint64_t uv__get_cgroup_constrained_memory(char buf[static 1024])
+static uint64_t uv__get_cgroup_constrained_memory(std::span<char> buf)
 {
     uint64_t high;
     uint64_t max;
 
     /* In the case of cgroupv2, we'll only have a single entry. */
-    if (strncmp(buf, "0::/", 4))
+    if (strncmp(buf.data(), "0::/", 4))
         uv__get_cgroup1_memory_limits(buf, &high, &max);
     else
         uv__get_cgroup2_memory_limits(buf, &high, &max);
@@ -2258,16 +2254,16 @@ static uint64_t uv__get_cgroup_constrained_memory(char buf[static 1024])
 
 uint64_t uv_get_constrained_memory(void)
 {
-    char buf[1024];
+    std::array<char, 1024> buf;
 
-    if (uv__slurp("/proc/self/cgroup", buf, sizeof(buf)))
+    if (uv__slurp("/proc/self/cgroup", buf))
         return 0;
 
     return uv__get_cgroup_constrained_memory(buf);
 }
 
 
-static uint64_t uv__get_cgroup1_current_memory(char buf[static 1024])
+static uint64_t uv__get_cgroup1_current_memory(std::span<char> buf)
 {
     char filename[4097];
     uint64_t current;
@@ -2295,14 +2291,14 @@ static uint64_t uv__get_cgroup1_current_memory(char buf[static 1024])
     return uv__read_uint64("/sys/fs/cgroup/memory/memory.usage_in_bytes");
 }
 
-static uint64_t uv__get_cgroup2_current_memory(char buf[static 1024])
+static uint64_t uv__get_cgroup2_current_memory(std::span<char> buf)
 {
     char filename[4097];
     char* p;
     int n;
 
     /* Find out where the controller is mounted. */
-    p = buf + strlen("0::/");
+    p = buf.data() + strlen("0::/");
     n = (int)strcspn(p, "\n");
 
     snprintf(
@@ -2312,7 +2308,7 @@ static uint64_t uv__get_cgroup2_current_memory(char buf[static 1024])
 
 uint64_t uv_get_available_memory(void)
 {
-    char buf[1024];
+    std::array<char, 1024> buf;
     uint64_t constrained;
     uint64_t current;
     uint64_t total;
@@ -2329,7 +2325,7 @@ uint64_t uv_get_available_memory(void)
         return uv_get_free_memory();
 
     /* In the case of cgroupv2, we'll only have a single entry. */
-    if (strncmp(buf, "0::/", 4))
+    if (strncmp(buf.data(), "0::/", 4))
         current = uv__get_cgroup1_current_memory(buf);
     else
         current = uv__get_cgroup2_current_memory(buf);

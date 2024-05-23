@@ -36,6 +36,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <span>
+#include <string>
+
 #define uv__msan_unpoison(p, n) \
     do {                        \
         (void)(p);              \
@@ -278,7 +281,7 @@ void uv__server_io(uv_loop_t* loop, uv__io_t* w, unsigned int events);
 int uv__accept(int sockfd);
 int uv__dup2_cloexec(int oldfd, int newfd);
 int uv__open_cloexec(const char* path, int flags);
-int uv__slurp(const char* filename, char* buf, size_t len);
+int uv__slurp(const std::string& filename, std::span<char> buf);
 
 /* tcp */
 int uv__tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb);

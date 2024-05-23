@@ -292,8 +292,8 @@ static int uv__fs_mkstemp(uv_fs_t* req)
     uv_once(&once, uv__mkostemp_initonce);
 
 #ifdef O_CLOEXEC
-    if (atomic_load_explicit(&no_cloexec_support,
-                             std::memory_order::memory_order_relaxed) == 0 &&
+    if (atomic_load_explicit(&no_cloexec_support, std::memory_order_relaxed) ==
+            0 &&
         uv__mkostemp != NULL) {
         r = uv__mkostemp(path, O_CLOEXEC);
 
@@ -308,7 +308,7 @@ static int uv__fs_mkstemp(uv_fs_t* req)
         /* We set the static variable so that next calls don't even
            try to use mkostemp. */
         std::atomic_store_explicit(
-            &no_cloexec_support, 1, std::memory_order::memory_order_relaxed);
+            &no_cloexec_support, 1, std::memory_order_relaxed);
     }
 #endif /* O_CLOEXEC */
 
@@ -437,8 +437,8 @@ static ssize_t uv__preadv_or_pwritev(int fd, const struct iovec* bufs,
     ssize_t (*f)(int, const struct iovec*, uv__iovcnt, off_t);
     void* p;
 
-    p = reinterpret_cast<void*>(std::atomic_load_explicit(
-        cache, std::memory_order::memory_order_relaxed));
+    p = reinterpret_cast<void*>(
+        std::atomic_load_explicit(cache, std::memory_order_relaxed));
     if (p == NULL) {
 #ifdef RTLD_DEFAULT
         p = dlsym(RTLD_DEFAULT, is_pread ? "preadv" : "pwritev");
@@ -447,9 +447,8 @@ static ssize_t uv__preadv_or_pwritev(int fd, const struct iovec* bufs,
         if (p == NULL)
             p = reinterpret_cast<void*>(is_pread ? uv__preadv_emul
                                                  : uv__pwritev_emul);
-        std::atomic_store_explicit(cache,
-                                   reinterpret_cast<uintptr_t>(p),
-                                   std::memory_order::memory_order_relaxed);
+        std::atomic_store_explicit(
+            cache, reinterpret_cast<uintptr_t>(p), std::memory_order_relaxed);
     }
 
     f = reinterpret_cast<ssize_t (*)(
@@ -933,7 +932,7 @@ static ssize_t uv__fs_try_copy_file_range(int in_fd, off_t* off, int out_fd,
     ssize_t r;
 
     if (std::atomic_load_explicit(&no_copy_file_range_support,
-                                  std::memory_order::memory_order_relaxed)) {
+                                  std::memory_order_relaxed)) {
         errno = ENOSYS;
         return -1;
     }
@@ -952,9 +951,8 @@ static ssize_t uv__fs_try_copy_file_range(int in_fd, off_t* off, int out_fd,
             errno = ENOSYS; /* Use fallback. */
         break;
     case ENOSYS:
-        std::atomic_store_explicit(&no_copy_file_range_support,
-                                   1,
-                                   std::memory_order::memory_order_relaxed);
+        std::atomic_store_explicit(
+            &no_copy_file_range_support, 1, std::memory_order_relaxed);
         break;
     case EPERM:
         /* It's been reported that CIFS spuriously fails.
@@ -1456,8 +1454,7 @@ static int uv__fs_statx(int fd, const char* path, int is_fstat, int is_lstat,
     int mode;
     int rc;
 
-    if (std::atomic_load_explicit(&no_statx,
-                                  std::memory_order::memory_order_relaxed))
+    if (std::atomic_load_explicit(&no_statx, std::memory_order_relaxed))
         return UV_ENOSYS;
 
     dirfd = AT_FDCWD;
@@ -1491,8 +1488,7 @@ static int uv__fs_statx(int fd, const char* path, int is_fstat, int is_lstat,
          * implemented, rc might return 1 with 0 set as the error code in which
          * case we return ENOSYS.
          */
-        std::atomic_store_explicit(
-            &no_statx, 1, std::memory_order::memory_order_relaxed);
+        std::atomic_store_explicit(&no_statx, 1, std::memory_order_relaxed);
         return UV_ENOSYS;
     }
 

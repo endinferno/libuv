@@ -72,8 +72,7 @@ int uv_async_send(uv_async_t* handle)
     busy = &handle->u.fd;
 
     /* Do a cheap read first. */
-    if (std::atomic_load_explicit(pending,
-                                  std::memory_order::memory_order_relaxed) != 0)
+    if (std::atomic_load_explicit(pending, std::memory_order_relaxed) != 0)
         return 0;
 
     /* Set the loop to busy. */
