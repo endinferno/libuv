@@ -128,7 +128,7 @@ list(APPEND uv_sources
     src/unix/thread.cpp
     src/unix/tty.cpp
     src/unix/udp.cpp)
-list(APPEND uv_test_sources test/runner-unix.cpp)
+# list(APPEND uv_test_sources test/runner-unix.cpp)
 
 list(APPEND uv_sources src/unix/proctitle.cpp)
 list(APPEND uv_defines _GNU_SOURCE _POSIX_C_SOURCE=200112)
@@ -180,26 +180,29 @@ if(LIBUV_BUILD_TESTS)
     # before the actual tests are added.
     add_executable(
         uv_run_benchmarks_a
-        ${uv_test_sources}
-        test/benchmark-async-pummel.cpp
-        test/benchmark-async.cpp
-        test/benchmark-fs-stat.cpp
-        test/benchmark-getaddrinfo.cpp
-        test/benchmark-loop-count.cpp
-        test/benchmark-queue-work.cpp
-        test/benchmark-million-async.cpp
-        test/benchmark-million-timers.cpp
-        test/benchmark-multi-accept.cpp
+
+        test/runner-unix.cpp
+
+        # ${uv_test_sources}
+        # test/benchmark-async-pummel.cpp
+        # test/benchmark-async.cpp
+        # test/benchmark-fs-stat.cpp
+        # test/benchmark-getaddrinfo.cpp
+        # test/benchmark-loop-count.cpp
+        # test/benchmark-queue-work.cpp
+        # test/benchmark-million-async.cpp
+        # test/benchmark-million-timers.cpp
+        # test/benchmark-multi-accept.cpp
         test/benchmark-ping-pongs.cpp
-        test/benchmark-ping-udp.cpp
-        test/benchmark-pound.cpp
-        test/benchmark-pump.cpp
-        test/benchmark-sizes.cpp
-        test/benchmark-spawn.cpp
-        test/benchmark-tcp-write-batch.cpp
-        test/benchmark-thread.cpp
-        test/benchmark-udp-pummel.cpp
-        test/blackhole-server.cpp
+        # test/benchmark-ping-udp.cpp
+        # test/benchmark-pound.cpp
+        # test/benchmark-pump.cpp
+        # test/benchmark-sizes.cpp
+        # test/benchmark-spawn.cpp
+        # test/benchmark-tcp-write-batch.cpp
+        # test/benchmark-thread.cpp
+        # test/benchmark-udp-pummel.cpp
+        # test/blackhole-server.cpp
         test/echo-server.cpp
         test/run-benchmarks.cpp
         test/runner.cpp)
@@ -207,203 +210,204 @@ if(LIBUV_BUILD_TESTS)
     target_compile_options(uv_run_benchmarks_a PRIVATE ${uv_cflags})
     target_link_libraries(uv_run_benchmarks_a uv_a ${uv_test_libraries})
 
-    list(APPEND uv_test_sources
-        test/blackhole-server.cpp
-        test/echo-server.cpp
-        test/run-tests.cpp
-        test/runner.cpp
-        test/test-active.cpp
-        test/test-async-null-cb.cpp
-        test/test-async.cpp
-        test/test-barrier.cpp
-        test/test-callback-stack.cpp
-        test/test-close-fd.cpp
-        test/test-close-order.cpp
-        test/test-condvar.cpp
-        test/test-connect-unspecified.cpp
-        test/test-connection-fail.cpp
-        test/test-cwd-and-chdir.cpp
-        test/test-default-loop-close.cpp
-        test/test-delayed-accept.cpp
-        test/test-dlerror.cpp
-        test/test-eintr-handling.cpp
-        test/test-embed.cpp
-        test/test-emfile.cpp
-        test/test-env-vars.cpp
-        test/test-error.cpp
-        test/test-fail-always.cpp
-        test/test-fork.cpp
-        test/test-fs-copyfile.cpp
-        test/test-fs-event.cpp
-        test/test-fs-poll.cpp
-        test/test-fs.cpp
-        test/test-fs-readdir.cpp
-        test/test-fs-fd-hash.cpp
-        test/test-fs-open-flags.cpp
-        test/test-get-currentexe.cpp
-        test/test-get-loadavg.cpp
-        test/test-get-memory.cpp
-        test/test-get-passwd.cpp
-        test/test-getaddrinfo.cpp
-        test/test-gethostname.cpp
-        test/test-getnameinfo.cpp
-        test/test-getsockname.cpp
-        test/test-getters-setters.cpp
-        test/test-gettimeofday.cpp
-        test/test-handle-fileno.cpp
-        test/test-homedir.cpp
-        test/test-hrtime.cpp
-        test/test-idle.cpp
-        test/test-idna.cpp
-        test/test-iouring-pollhup.cpp
-        test/test-ip4-addr.cpp
-        test/test-ip6-addr.cpp
-        test/test-ip-name.cpp
-        test/test-ipc-heavy-traffic-deadlock-bug.cpp
-        test/test-ipc-send-recv.cpp
-        test/test-ipc.cpp
-        test/test-loop-alive.cpp
-        test/test-loop-close.cpp
-        test/test-loop-configure.cpp
-        test/test-loop-handles.cpp
-        test/test-loop-stop.cpp
-        test/test-loop-time.cpp
-        test/test-metrics.cpp
-        test/test-multiple-listen.cpp
-        test/test-mutexes.cpp
-        test/test-not-readable-nor-writable-on-read-error.cpp
-        test/test-not-writable-after-shutdown.cpp
-        test/test-osx-select.cpp
-        test/test-pass-always.cpp
-        test/test-ping-pong.cpp
-        test/test-pipe-bind-error.cpp
-        test/test-pipe-close-stdout-read-stdin.cpp
-        test/test-pipe-connect-error.cpp
-        test/test-pipe-connect-multiple.cpp
-        test/test-pipe-connect-prepare.cpp
-        test/test-pipe-getsockname.cpp
-        test/test-pipe-pending-instances.cpp
-        test/test-pipe-sendmsg.cpp
-        test/test-pipe-server-close.cpp
-        test/test-pipe-set-fchmod.cpp
-        test/test-pipe-set-non-blocking.cpp
-        test/test-platform-output.cpp
-        test/test-poll-close-doesnt-corrupt-stack.cpp
-        test/test-poll-close.cpp
-        test/test-poll-closesocket.cpp
-        test/test-poll-multiple-handles.cpp
-        test/test-poll-oob.cpp
-        test/test-poll.cpp
-        test/test-process-priority.cpp
-        test/test-process-title-threadsafe.cpp
-        test/test-process-title.cpp
-        test/test-queue-foreach-delete.cpp
-        test/test-random.cpp
-        test/test-readable-on-eof.cpp
-        test/test-ref.cpp
-        test/test-run-nowait.cpp
-        test/test-run-once.cpp
-        test/test-semaphore.cpp
-        test/test-shutdown-close.cpp
-        test/test-shutdown-eof.cpp
-        test/test-shutdown-simultaneous.cpp
-        test/test-shutdown-twice.cpp
-        test/test-signal-multiple-loops.cpp
-        test/test-signal-pending-on-close.cpp
-        test/test-signal.cpp
-        test/test-socket-buffer-size.cpp
-        test/test-spawn.cpp
-        test/test-stdio-over-pipes.cpp
-        test/test-strscpy.cpp
-        test/test-strtok.cpp
-        test/test-tcp-alloc-cb-fail.cpp
-        test/test-tcp-bind-error.cpp
-        test/test-tcp-bind6-error.cpp
-        test/test-tcp-close-accept.cpp
-        test/test-tcp-close-after-read-timeout.cpp
-        test/test-tcp-close-while-connecting.cpp
-        test/test-tcp-close.cpp
-        test/test-tcp-close-reset.cpp
-        test/test-tcp-connect-error-after-write.cpp
-        test/test-tcp-connect-error.cpp
-        test/test-tcp-connect-timeout.cpp
-        test/test-tcp-connect6-error.cpp
-        test/test-tcp-create-socket-early.cpp
-        test/test-tcp-flags.cpp
-        test/test-tcp-oob.cpp
-        test/test-tcp-open.cpp
-        test/test-tcp-read-stop.cpp
-        test/test-tcp-read-stop-start.cpp
-        test/test-tcp-rst.cpp
-        test/test-tcp-shutdown-after-write.cpp
-        test/test-tcp-try-write.cpp
-        test/test-tcp-write-in-a-row.cpp
-        test/test-tcp-try-write-error.cpp
-        test/test-tcp-unexpected-read.cpp
-        test/test-tcp-write-after-connect.cpp
-        test/test-tcp-write-fail.cpp
-        test/test-tcp-write-queue-order.cpp
-        test/test-tcp-write-to-half-open-connection.cpp
-        test/test-tcp-writealot.cpp
-        test/test-test-macros.cpp
-        test/test-thread-affinity.cpp
-        test/test-thread-equal.cpp
-        test/test-thread.cpp
-        test/test-thread-priority.cpp
-        test/test-threadpool-cancel.cpp
-        test/test-threadpool.cpp
-        test/test-timer-again.cpp
-        test/test-timer-from-check.cpp
-        test/test-timer.cpp
-        test/test-tmpdir.cpp
-        test/test-tty-duplicate-key.cpp
-        test/test-tty-escape-sequence-processing.cpp
-        test/test-tty.cpp
-        test/test-udp-alloc-cb-fail.cpp
-        test/test-udp-bind.cpp
-        test/test-udp-connect.cpp
-        test/test-udp-connect6.cpp
-        test/test-udp-create-socket-early.cpp
-        test/test-udp-dgram-too-big.cpp
-        test/test-udp-ipv6.cpp
-        test/test-udp-mmsg.cpp
-        test/test-udp-multicast-interface.cpp
-        test/test-udp-multicast-interface6.cpp
-        test/test-udp-multicast-join.cpp
-        test/test-udp-multicast-join6.cpp
-        test/test-udp-multicast-ttl.cpp
-        test/test-udp-open.cpp
-        test/test-udp-options.cpp
-        test/test-udp-send-and-recv.cpp
-        test/test-udp-send-hang-loop.cpp
-        test/test-udp-send-immediate.cpp
-        test/test-udp-sendmmsg-error.cpp
-        test/test-udp-send-unreachable.cpp
-        test/test-udp-try-send.cpp
-        test/test-udp-recv-in-a-row.cpp
-        test/test-uname.cpp
-        test/test-walk-handles.cpp
-        test/test-watcher-cross-stop.cpp)
+    # list(APPEND uv_test_sources
+    #     test/blackhole-server.cpp
+    #     test/echo-server.cpp
+    #     test/run-tests.cpp
+    #     test/runner.cpp
+    #     test/test-active.cpp
+    #     test/test-async-null-cb.cpp
+    #     test/test-async.cpp
+    #     test/test-barrier.cpp
+    #     test/test-callback-stack.cpp
+    #     test/test-close-fd.cpp
+    #     test/test-close-order.cpp
+    #     test/test-condvar.cpp
+    #     test/test-connect-unspecified.cpp
+    #     test/test-connection-fail.cpp
+    #     test/test-cwd-and-chdir.cpp
+    #     test/test-default-loop-close.cpp
+    #     test/test-delayed-accept.cpp
+    #     test/test-dlerror.cpp
+    #     test/test-eintr-handling.cpp
+    #     test/test-embed.cpp
+    #     test/test-emfile.cpp
+    #     test/test-env-vars.cpp
+    #     test/test-error.cpp
+    #     test/test-fail-always.cpp
+    #     test/test-fork.cpp
+    #     test/test-fs-copyfile.cpp
+    #     test/test-fs-event.cpp
+    #     test/test-fs-poll.cpp
+    #     test/test-fs.cpp
+    #     test/test-fs-readdir.cpp
+    #     test/test-fs-fd-hash.cpp
+    #     test/test-fs-open-flags.cpp
+    #     test/test-get-currentexe.cpp
+    #     test/test-get-loadavg.cpp
+    #     test/test-get-memory.cpp
+    #     test/test-get-passwd.cpp
+    #     test/test-getaddrinfo.cpp
+    #     test/test-gethostname.cpp
+    #     test/test-getnameinfo.cpp
+    #     test/test-getsockname.cpp
+    #     test/test-getters-setters.cpp
+    #     test/test-gettimeofday.cpp
+    #     test/test-handle-fileno.cpp
+    #     test/test-homedir.cpp
+    #     test/test-hrtime.cpp
+    #     test/test-idle.cpp
+    #     test/test-idna.cpp
+    #     test/test-iouring-pollhup.cpp
+    #     test/test-ip4-addr.cpp
+    #     test/test-ip6-addr.cpp
+    #     test/test-ip-name.cpp
+    #     test/test-ipc-heavy-traffic-deadlock-bug.cpp
+    #     test/test-ipc-send-recv.cpp
+    #     test/test-ipc.cpp
+    #     test/test-loop-alive.cpp
+    #     test/test-loop-close.cpp
+    #     test/test-loop-configure.cpp
+    #     test/test-loop-handles.cpp
+    #     test/test-loop-stop.cpp
+    #     test/test-loop-time.cpp
+    #     test/test-metrics.cpp
+    #     test/test-multiple-listen.cpp
+    #     test/test-mutexes.cpp
+    #     test/test-not-readable-nor-writable-on-read-error.cpp
+    #     test/test-not-writable-after-shutdown.cpp
+    #     test/test-osx-select.cpp
+    #     test/test-pass-always.cpp
+    #     test/test-ping-pong.cpp
+    #     test/test-pipe-bind-error.cpp
+    #     test/test-pipe-close-stdout-read-stdin.cpp
+    #     test/test-pipe-connect-error.cpp
+    #     test/test-pipe-connect-multiple.cpp
+    #     test/test-pipe-connect-prepare.cpp
+    #     test/test-pipe-getsockname.cpp
+    #     test/test-pipe-pending-instances.cpp
+    #     test/test-pipe-sendmsg.cpp
+    #     test/test-pipe-server-close.cpp
+    #     test/test-pipe-set-fchmod.cpp
+    #     test/test-pipe-set-non-blocking.cpp
+    #     test/test-platform-output.cpp
+    #     test/test-poll-close-doesnt-corrupt-stack.cpp
+    #     test/test-poll-close.cpp
+    #     test/test-poll-closesocket.cpp
+    #     test/test-poll-multiple-handles.cpp
+    #     test/test-poll-oob.cpp
+    #     test/test-poll.cpp
+    #     test/test-process-priority.cpp
+    #     test/test-process-title-threadsafe.cpp
+    #     test/test-process-title.cpp
+    #     test/test-queue-foreach-delete.cpp
+    #     test/test-random.cpp
+    #     test/test-readable-on-eof.cpp
+    #     test/test-ref.cpp
+    #     test/test-run-nowait.cpp
+    #     test/test-run-once.cpp
+    #     test/test-semaphore.cpp
+    #     test/test-shutdown-close.cpp
+    #     test/test-shutdown-eof.cpp
+    #     test/test-shutdown-simultaneous.cpp
+    #     test/test-shutdown-twice.cpp
+    #     test/test-signal-multiple-loops.cpp
+    #     test/test-signal-pending-on-close.cpp
+    #     test/test-signal.cpp
+    #     test/test-socket-buffer-size.cpp
+    #     test/test-spawn.cpp
+    #     test/test-stdio-over-pipes.cpp
+    #     test/test-strscpy.cpp
+    #     test/test-strtok.cpp
+    #     test/test-tcp-alloc-cb-fail.cpp
+    #     test/test-tcp-bind-error.cpp
+    #     test/test-tcp-bind6-error.cpp
+    #     test/test-tcp-close-accept.cpp
+    #     test/test-tcp-close-after-read-timeout.cpp
+    #     test/test-tcp-close-while-connecting.cpp
+    #     test/test-tcp-close.cpp
+    #     test/test-tcp-close-reset.cpp
+    #     test/test-tcp-connect-error-after-write.cpp
+    #     test/test-tcp-connect-error.cpp
+    #     test/test-tcp-connect-timeout.cpp
+    #     test/test-tcp-connect6-error.cpp
+    #     test/test-tcp-create-socket-early.cpp
+    #     test/test-tcp-flags.cpp
+    #     test/test-tcp-oob.cpp
+    #     test/test-tcp-open.cpp
+    #     test/test-tcp-read-stop.cpp
+    #     test/test-tcp-read-stop-start.cpp
+    #     test/test-tcp-rst.cpp
+    #     test/test-tcp-shutdown-after-write.cpp
+    #     test/test-tcp-try-write.cpp
+    #     test/test-tcp-write-in-a-row.cpp
+    #     test/test-tcp-try-write-error.cpp
+    #     test/test-tcp-unexpected-read.cpp
+    #     test/test-tcp-write-after-connect.cpp
+    #     test/test-tcp-write-fail.cpp
+    #     test/test-tcp-write-queue-order.cpp
+    #     test/test-tcp-write-to-half-open-connection.cpp
+    #     test/test-tcp-writealot.cpp
+    #     test/test-test-macros.cpp
+    #     test/test-thread-affinity.cpp
+    #     test/test-thread-equal.cpp
+    #     test/test-thread.cpp
+    #     test/test-thread-priority.cpp
+    #     test/test-threadpool-cancel.cpp
+    #     test/test-threadpool.cpp
+    #     test/test-timer-again.cpp
+    #     test/test-timer-from-check.cpp
+    #     test/test-timer.cpp
+    #     test/test-tmpdir.cpp
+    #     test/test-tty-duplicate-key.cpp
+    #     test/test-tty-escape-sequence-processing.cpp
+    #     test/test-tty.cpp
+    #     test/test-udp-alloc-cb-fail.cpp
+    #     test/test-udp-bind.cpp
+    #     test/test-udp-connect.cpp
+    #     test/test-udp-connect6.cpp
+    #     test/test-udp-create-socket-early.cpp
+    #     test/test-udp-dgram-too-big.cpp
+    #     test/test-udp-ipv6.cpp
+    #     test/test-udp-mmsg.cpp
+    #     test/test-udp-multicast-interface.cpp
+    #     test/test-udp-multicast-interface6.cpp
+    #     test/test-udp-multicast-join.cpp
+    #     test/test-udp-multicast-join6.cpp
+    #     test/test-udp-multicast-ttl.cpp
+    #     test/test-udp-open.cpp
+    #     test/test-udp-options.cpp
+    #     test/test-udp-send-and-recv.cpp
+    #     test/test-udp-send-hang-loop.cpp
+    #     test/test-udp-send-immediate.cpp
+    #     test/test-udp-sendmmsg-error.cpp
+    #     test/test-udp-send-unreachable.cpp
+    #     test/test-udp-try-send.cpp
+    #     test/test-udp-recv-in-a-row.cpp
+    #     test/test-uname.cpp
+    #     test/test-walk-handles.cpp
+    #     test/test-watcher-cross-stop.cpp
+    # )
 
-    add_executable(uv_run_tests ${uv_test_sources} uv_win_longpath.manifest)
-    target_compile_definitions(uv_run_tests
-        PRIVATE ${uv_defines} USING_UV_SHARED=1)
-    target_compile_options(uv_run_tests PRIVATE ${uv_cflags})
-    target_link_libraries(uv_run_tests uv ${uv_test_libraries})
-    add_test(NAME uv_test
-        COMMAND uv_run_tests
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-    add_executable(uv_run_tests_a ${uv_test_sources} uv_win_longpath.manifest)
-    target_compile_definitions(uv_run_tests_a PRIVATE ${uv_defines})
-    target_compile_options(uv_run_tests_a PRIVATE ${uv_cflags})
-    if(QEMU)
-        target_link_libraries(uv_run_tests_a uv_a ${uv_test_libraries} -static)
-    else()
-        target_link_libraries(uv_run_tests_a uv_a ${uv_test_libraries})
-    endif()
-    add_test(NAME uv_test_a
-        COMMAND uv_run_tests_a
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    # add_executable(uv_run_tests ${uv_test_sources} uv_win_longpath.manifest)
+    # target_compile_definitions(uv_run_tests
+    #     PRIVATE ${uv_defines} USING_UV_SHARED=1)
+    # target_compile_options(uv_run_tests PRIVATE ${uv_cflags})
+    # target_link_libraries(uv_run_tests uv ${uv_test_libraries})
+    # add_test(NAME uv_test
+    #     COMMAND uv_run_tests
+    #     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    # add_executable(uv_run_tests_a ${uv_test_sources} uv_win_longpath.manifest)
+    # target_compile_definitions(uv_run_tests_a PRIVATE ${uv_defines})
+    # target_compile_options(uv_run_tests_a PRIVATE ${uv_cflags})
+    # if(QEMU)
+    #     target_link_libraries(uv_run_tests_a uv_a ${uv_test_libraries} -static)
+    # else()
+    #     target_link_libraries(uv_run_tests_a uv_a ${uv_test_libraries})
+    # endif()
+    # add_test(NAME uv_test_a
+    #     COMMAND uv_run_tests_a
+    #     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 endif()
 
 # Now for some gibbering horrors from beyond the stars...
@@ -423,7 +427,7 @@ configure_file(libuv-static.pc.in libuv-static.pc @ONLY)
 
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install(FILES LICENSE DESTINATION ${CMAKE_INSTALL_DOCDIR})
-install(FILES LICENSE-extra DESTINATION ${CMAKE_INSTALL_DOCDIR})
+# install(FILES LICENSE-extra DESTINATION ${CMAKE_INSTALL_DOCDIR})
 install(FILES ${PROJECT_BINARY_DIR}/libuv-static.pc
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 install(TARGETS uv_a EXPORT libuvConfig

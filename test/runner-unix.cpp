@@ -40,10 +40,6 @@
 #include <sys/select.h>
 #include <sys/time.h>
 
-#ifdef __APPLE__
-#    include <TargetConditionals.h>
-#endif
-
 extern char** environ;
 
 static void closefd(int fd)
@@ -139,11 +135,7 @@ int process_start(char* name, char* part, process_info_t* p, int is_helper)
     p->terminated = 0;
     p->status = 0;
 
-#if defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH)
-    pid = -1;
-#else
     pid = fork();
-#endif
 
     if (pid < 0) {
         perror("fork");
@@ -156,9 +148,7 @@ int process_start(char* name, char* part, process_info_t* p, int is_helper)
             closefd(pipefd[0]);
         dup2(stdout_fd, STDOUT_FILENO);
         dup2(stdout_fd, STDERR_FILENO);
-#if !(defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH))
         execve(args[0], args, environ);
-#endif
         perror("execve()");
         _exit(127);
     }
@@ -280,11 +270,7 @@ int process_wait(process_info_t* vec, int n, int timeout)
     if (pthread_attr_init(&attr))
         abort();
 
-#if defined(__MVS__)
-    if (pthread_attr_setstacksize(&attr, 1024 * 1024))
-#else
     if (pthread_attr_setstacksize(&attr, 256 * 1024))
-#endif
         abort();
 
     r = pthread_create(&tid, &attr, dowait, &args);
@@ -460,9 +446,5 @@ void process_cleanup(process_info_t* p)
 /* Move the console cursor one line up and back to the first column. */
 void rewind_cursor(void)
 {
-#if defined(__MVS__)
-    fprintf(stderr, "\047[2K\r");
-#else
     fprintf(stderr, "\033[2K\r");
-#endif
 }

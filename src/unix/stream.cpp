@@ -35,32 +35,6 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-#if defined(__APPLE__)
-#    include <sys/event.h>
-#    include <sys/select.h>
-#    include <sys/time.h>
-
-/* Forward declaration */
-typedef struct uv__stream_select_s uv__stream_select_t;
-
-struct uv__stream_select_s
-{
-    uv_stream_t* stream;
-    uv_thread_t thread;
-    uv_sem_t close_sem;
-    uv_sem_t async_sem;
-    uv_async_t async;
-    int events;
-    int fake_fd;
-    int int_fd;
-    int fd;
-    fd_set* sread;
-    size_t sread_sz;
-    fd_set* swrite;
-    size_t swrite_sz;
-};
-#endif /* defined(__APPLE__) */
-
 union uv__cmsg
 {
     struct cmsghdr hdr;
@@ -110,309 +84,18 @@ void uv__stream_init(uv_loop_t* loop, uv_stream_t* stream, uv_handle_type type)
             loop->emfile_fd = err;
     }
 
-#if defined(__APPLE__)
-    stream->select = NULL;
-#endif /* defined(__APPLE_) */
-
     uv__io_init(&stream->io_watcher, uv__stream_io, -1);
 }
 
 
 static void uv__stream_osx_interrupt_select(uv_stream_t* stream)
 {
-#if defined(__APPLE__)
-    /* Notify select() thread about state change */
-    uv__stream_select_t* s;
-    int r;
-
-    s = stream->select;
-    if (s == NULL)
-        return;
-
-    /* Interrupt select() loop
-     * NOTE: fake_fd and int_fd are socketpair(), thus writing to one will
-     * emit read event on other side
-     */
-    do
-        r = write(s->fake_fd, "x", 1);
-    while (r == -1 && errno == EINTR);
-
-    assert(r == 1);
-#else  /* !defined(__APPLE__) */
     /* No-op on any other platform */
-#endif /* !defined(__APPLE__) */
 }
-
-
-#if defined(__APPLE__)
-static void uv__stream_osx_select(void* arg)
-{
-    uv_stream_t* stream;
-    uv__stream_select_t* s;
-    char buf[1024];
-    int events;
-    int fd;
-    int r;
-    int max_fd;
-
-    stream = arg;
-    s = stream->select;
-    fd = s->fd;
-
-    if (fd > s->int_fd)
-        max_fd = fd;
-    else
-        max_fd = s->int_fd;
-
-    for (;;) {
-        /* Terminate on semaphore */
-        if (uv_sem_trywait(&s->close_sem) == 0)
-            break;
-
-        /* Watch fd using select(2) */
-        memset(s->sread, 0, s->sread_sz);
-        memset(s->swrite, 0, s->swrite_sz);
-
-        if (uv__io_active(&stream->io_watcher, POLLIN))
-            FD_SET(fd, s->sread);
-        if (uv__io_active(&stream->io_watcher, POLLOUT))
-            FD_SET(fd, s->swrite);
-        FD_SET(s->int_fd, s->sread);
-
-        /* Wait indefinitely for fd events */
-        r = select(max_fd + 1, s->sread, s->swrite, NULL, NULL);
-        if (r == -1) {
-            if (errno == EINTR)
-                continue;
-
-            /* XXX: Possible?! */
-            abort();
-        }
-
-        /* Ignore timeouts */
-        if (r == 0)
-            continue;
-
-        /* Empty socketpair's buffer in case of interruption */
-        if (FD_ISSET(s->int_fd, s->sread))
-            for (;;) {
-                r = read(s->int_fd, buf, sizeof(buf));
-
-                if (r == sizeof(buf))
-                    continue;
-
-                if (r != -1)
-                    break;
-
-                if (errno == EAGAIN || errno == EWOULDBLOCK)
-                    break;
-
-                if (errno == EINTR)
-                    continue;
-
-                abort();
-            }
-
-        /* Handle events */
-        events = 0;
-        if (FD_ISSET(fd, s->sread))
-            events |= POLLIN;
-        if (FD_ISSET(fd, s->swrite))
-            events |= POLLOUT;
-
-        assert(events != 0 || FD_ISSET(s->int_fd, s->sread));
-        if (events != 0) {
-            ACCESS_ONCE(int, s->events) = events;
-
-            uv_async_send(&s->async);
-            uv_sem_wait(&s->async_sem);
-
-            /* Should be processed at this stage */
-            assert((s->events == 0) || (stream->flags & UV_HANDLE_CLOSING));
-        }
-    }
-}
-
-
-static void uv__stream_osx_select_cb(uv_async_t* handle)
-{
-    uv__stream_select_t* s;
-    uv_stream_t* stream;
-    int events;
-
-    s = container_of(handle, uv__stream_select_t, async);
-    stream = s->stream;
-
-    /* Get and reset stream's events */
-    events = s->events;
-    ACCESS_ONCE(int, s->events) = 0;
-
-    assert(events != 0);
-    assert(events == (events & (POLLIN | POLLOUT)));
-
-    /* Invoke callback on event-loop */
-    if ((events & POLLIN) && uv__io_active(&stream->io_watcher, POLLIN))
-        uv__stream_io(stream->loop, &stream->io_watcher, POLLIN);
-
-    if ((events & POLLOUT) && uv__io_active(&stream->io_watcher, POLLOUT))
-        uv__stream_io(stream->loop, &stream->io_watcher, POLLOUT);
-
-    if (stream->flags & UV_HANDLE_CLOSING)
-        return;
-
-    /* NOTE: It is important to do it here, otherwise `select()` might be called
-     * before the actual `uv__read()`, leading to the blocking syscall
-     */
-    uv_sem_post(&s->async_sem);
-}
-
-
-static void uv__stream_osx_cb_close(uv_handle_t* async)
-{
-    uv__stream_select_t* s;
-
-    s = container_of(async, uv__stream_select_t, async);
-    uv__free(s);
-}
-
-
-int uv__stream_try_select(uv_stream_t* stream, int* fd)
-{
-    /*
-     * kqueue doesn't work with some files from /dev mount on osx.
-     * select(2) in separate thread for those fds
-     */
-
-    struct kevent filter[1];
-    struct kevent events[1];
-    struct timespec timeout;
-    uv__stream_select_t* s;
-    int fds[2];
-    int err;
-    int ret;
-    int kq;
-    int old_fd;
-    int max_fd;
-    size_t sread_sz;
-    size_t swrite_sz;
-
-    kq = kqueue();
-    if (kq == -1) {
-        perror("(libuv) kqueue()");
-        return UV__ERR(errno);
-    }
-
-    EV_SET(&filter[0], *fd, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, 0);
-
-    /* Use small timeout, because we only want to capture EINVALs */
-    timeout.tv_sec = 0;
-    timeout.tv_nsec = 1;
-
-    do
-        ret = kevent(kq, filter, 1, events, 1, &timeout);
-    while (ret == -1 && errno == EINTR);
-
-    uv__close(kq);
-
-    if (ret == -1)
-        return UV__ERR(errno);
-
-    if (ret == 0 || (events[0].flags & EV_ERROR) == 0 ||
-        events[0].data != EINVAL)
-        return 0;
-
-    /* At this point we definitely know that this fd won't work with kqueue */
-
-    /*
-     * Create fds for io watcher and to interrupt the select() loop.
-     * NOTE: do it ahead of malloc below to allocate enough space for fd_sets
-     */
-    if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds))
-        return UV__ERR(errno);
-
-    max_fd = *fd;
-    if (fds[1] > max_fd)
-        max_fd = fds[1];
-
-    sread_sz = ROUND_UP(max_fd + 1, sizeof(uint32_t) * NBBY) / NBBY;
-    swrite_sz = sread_sz;
-
-    s = uv__malloc(sizeof(*s) + sread_sz + swrite_sz);
-    if (s == NULL) {
-        err = UV_ENOMEM;
-        goto failed_malloc;
-    }
-
-    s->events = 0;
-    s->fd = *fd;
-    s->sread = (fd_set*)((char*)s + sizeof(*s));
-    s->sread_sz = sread_sz;
-    s->swrite = (fd_set*)((char*)s->sread + sread_sz);
-    s->swrite_sz = swrite_sz;
-
-    err = uv_async_init(stream->loop, &s->async, uv__stream_osx_select_cb);
-    if (err)
-        goto failed_async_init;
-
-    s->async.flags |= UV_HANDLE_INTERNAL;
-    uv__handle_unref(&s->async);
-
-    err = uv_sem_init(&s->close_sem, 0);
-    if (err != 0)
-        goto failed_close_sem_init;
-
-    err = uv_sem_init(&s->async_sem, 0);
-    if (err != 0)
-        goto failed_async_sem_init;
-
-    s->fake_fd = fds[0];
-    s->int_fd = fds[1];
-
-    old_fd = *fd;
-    s->stream = stream;
-    stream->select = s;
-    *fd = s->fake_fd;
-
-    err = uv_thread_create(&s->thread, uv__stream_osx_select, stream);
-    if (err != 0)
-        goto failed_thread_create;
-
-    return 0;
-
-failed_thread_create:
-    s->stream = NULL;
-    stream->select = NULL;
-    *fd = old_fd;
-
-    uv_sem_destroy(&s->async_sem);
-
-failed_async_sem_init:
-    uv_sem_destroy(&s->close_sem);
-
-failed_close_sem_init:
-    uv__close(fds[0]);
-    uv__close(fds[1]);
-    uv_close((uv_handle_t*)&s->async, uv__stream_osx_cb_close);
-    return err;
-
-failed_async_init:
-    uv__free(s);
-
-failed_malloc:
-    uv__close(fds[0]);
-    uv__close(fds[1]);
-
-    return err;
-}
-#endif /* defined(__APPLE__) */
 
 
 int uv__stream_open(uv_stream_t* stream, int fd, int flags)
 {
-#if defined(__APPLE__)
-    int enable;
-#endif
-
     if (!(stream->io_watcher.fd == -1 || stream->io_watcher.fd == fd))
         return UV_EBUSY;
 
@@ -429,14 +112,6 @@ int uv__stream_open(uv_stream_t* stream, int fd, int flags)
             return UV__ERR(errno);
         }
     }
-
-#if defined(__APPLE__)
-    enable = 1;
-    if (setsockopt(fd, SOL_SOCKET, SO_OOBINLINE, &enable, sizeof(enable)) &&
-        errno != ENOTSOCK && errno != EINVAL) {
-        return UV__ERR(errno);
-    }
-#endif
 
     stream->io_watcher.fd = fd;
 
@@ -831,20 +506,6 @@ static int uv__try_write(uv_stream_t* stream, const uv_buf_t bufs[],
     if (errno == EAGAIN || errno == EWOULDBLOCK || errno == ENOBUFS)
         return UV_EAGAIN;
 
-#ifdef __APPLE__
-    /* macOS versions 10.10 and 10.15 - and presumbaly 10.11 to 10.14, too -
-     * have a bug where a race condition causes the kernel to return EPROTOTYPE
-     * because the socket isn't fully constructed. It's probably the result of
-     * the peer closing the connection and that is why libuv translates it to
-     * ECONNRESET. Previously, libuv retried until the EPROTOTYPE error went
-     * away but some VPN software causes the same behavior except the error is
-     * permanent, not transient, turning the retry mechanism into an infinite
-     * loop. See https://github.com/libuv/libuv/pull/482.
-     */
-    if (errno == EPROTOTYPE)
-        return UV_ECONNRESET;
-#endif /* __APPLE__ */
-
     return UV__ERR(errno);
 }
 
@@ -1141,29 +802,6 @@ static void uv__read(uv_stream_t* stream)
                 }
             }
 
-#if defined(__MVS__)
-            if (is_ipc && msg.msg_controllen > 0) {
-                uv_buf_t blankbuf;
-                int nread;
-                struct iovec* old;
-
-                blankbuf.base = 0;
-                blankbuf.len = 0;
-                old = msg.msg_iov;
-                msg.msg_iov = (struct iovec*)&blankbuf;
-                nread = 0;
-                do {
-                    nread = uv__recvmsg(uv__stream_fd(stream), &msg, 0);
-                    err = uv__stream_recv_cmsg(stream, &msg);
-                    if (err != 0) {
-                        stream->read_cb(stream, err, &buf);
-                        msg.msg_iov = old;
-                        return;
-                    }
-                } while (nread == 0 && msg.msg_controllen > 0);
-                msg.msg_iov = old;
-            }
-#endif
             stream->read_cb(stream, nread, &buf);
 
             /* Return if we didn't fill the buffer, there is no more data to
@@ -1498,23 +1136,6 @@ int uv_is_writable(const uv_stream_t* stream)
 {
     return !!(stream->flags & UV_HANDLE_WRITABLE);
 }
-
-
-#if defined(__APPLE__)
-int uv___stream_fd(const uv_stream_t* handle)
-{
-    const uv__stream_select_t* s;
-
-    assert(handle->type == UV_TCP || handle->type == UV_TTY ||
-           handle->type == UV_NAMED_PIPE);
-
-    s = handle->select;
-    if (s != NULL)
-        return s->fd;
-
-    return handle->io_watcher.fd;
-}
-#endif /* defined(__APPLE__) */
 
 
 void uv__stream_close(uv_stream_t* handle)

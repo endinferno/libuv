@@ -274,13 +274,10 @@ void uv__run_prepare(uv_loop_t* loop);
 void uv__stream_init(uv_loop_t* loop, uv_stream_t* stream, uv_handle_type type);
 int uv__stream_open(uv_stream_t*, int fd, int flags);
 void uv__stream_destroy(uv_stream_t* stream);
-#if defined(__APPLE__)
-int uv__stream_try_select(uv_stream_t* stream, int* fd);
-#endif /* defined(__APPLE__) */
 void uv__server_io(uv_loop_t* loop, uv__io_t* w, unsigned int events);
 int uv__accept(int sockfd);
 int uv__dup2_cloexec(int oldfd, int newfd);
-int uv__open_cloexec(const char* path, int flags);
+int uv__open_cloexec(const std::string& path, int flags);
 int uv__slurp(const std::string& filename, std::span<char> buf);
 
 /* tcp */
@@ -319,7 +316,7 @@ void uv__tcp_close(uv_tcp_t* handle);
 size_t uv__thread_stack_size(void);
 void uv__udp_close(uv_udp_t* handle);
 void uv__udp_finish_close(uv_udp_t* handle);
-FILE* uv__open_file(const char* path);
+FILE* uv__open_file(const std::string &path);
 int uv__search_path(const char* prog, char* buf, size_t* buflen);
 void uv__wait_children(uv_loop_t* loop);
 
@@ -331,7 +328,6 @@ int uv__random_readpath(const char* path, void* buf, size_t buflen);
 int uv__random_sysctl(void* buf, size_t buflen);
 
 /* io_uring */
-#ifdef __linux__
 int uv__iou_fs_close(uv_loop_t* loop, uv_fs_t* req);
 int uv__iou_fs_fsync_or_fdatasync(uv_loop_t* loop, uv_fs_t* req,
                                   uint32_t fsync_flags);
@@ -343,35 +339,10 @@ int uv__iou_fs_rename(uv_loop_t* loop, uv_fs_t* req);
 int uv__iou_fs_statx(uv_loop_t* loop, uv_fs_t* req, int is_fstat, int is_lstat);
 int uv__iou_fs_symlink(uv_loop_t* loop, uv_fs_t* req);
 int uv__iou_fs_unlink(uv_loop_t* loop, uv_fs_t* req);
-#else
-#    define uv__iou_fs_close(loop, req) 0
-#    define uv__iou_fs_fsync_or_fdatasync(loop, req, fsync_flags) 0
-#    define uv__iou_fs_link(loop, req) 0
-#    define uv__iou_fs_mkdir(loop, req) 0
-#    define uv__iou_fs_open(loop, req) 0
-#    define uv__iou_fs_read_or_write(loop, req, is_read) 0
-#    define uv__iou_fs_rename(loop, req) 0
-#    define uv__iou_fs_statx(loop, req, is_fstat, is_lstat) 0
-#    define uv__iou_fs_symlink(loop, req) 0
-#    define uv__iou_fs_unlink(loop, req) 0
-#endif
 
-#if defined(__APPLE__)
-int uv___stream_fd(const uv_stream_t* handle);
-#    define uv__stream_fd(handle) (uv___stream_fd((const uv_stream_t*)(handle)))
-#else
-#    define uv__stream_fd(handle) ((handle)->io_watcher.fd)
-#endif /* defined(__APPLE__) */
+#define uv__stream_fd(handle) ((handle)->io_watcher.fd)
 
 int uv__make_pipe(int fds[2], int flags);
-
-#if defined(__APPLE__)
-
-int uv__fsevents_init(uv_fs_event_t* handle);
-int uv__fsevents_close(uv_fs_event_t* handle);
-void uv__fsevents_loop_delete(uv_loop_t* loop);
-
-#endif /* defined(__APPLE__) */
 
 UV_UNUSED(static void uv__update_time(uv_loop_t* loop))
 {
@@ -424,7 +395,6 @@ UV_UNUSED(static int uv__stat(const char* path, struct stat* s))
     return rc;
 }
 
-#if defined(__linux__)
 void uv__fs_post(uv_loop_t* loop, uv_fs_t* req);
 ssize_t uv__fs_copy_file_range(int fd_in, off_t* off_in, int fd_out,
                                off_t* off_out, size_t len, unsigned int flags);
@@ -433,23 +403,11 @@ int uv__statx(int dirfd, const char* path, int flags, unsigned int mask,
 void uv__statx_to_stat(const struct uv__statx* statxbuf, uv_stat_t* buf);
 ssize_t uv__getrandom(void* buf, size_t buflen, unsigned flags);
 unsigned uv__kernel_version(void);
-#endif
 
 typedef int (*uv__peersockfunc)(int, struct sockaddr*, socklen_t*);
 
 int uv__getsockpeername(const uv_handle_t* handle, uv__peersockfunc func,
                         struct sockaddr* name, int* namelen);
-
-#if defined(__sun)
-#    if !defined(_POSIX_VERSION) || _POSIX_VERSION < 200809L
-size_t strnlen(const char* s, size_t maxlen);
-#    endif
-#endif
-
-#if defined(__FreeBSD__)
-ssize_t uv__fs_copy_file_range(int fd_in, off_t* off_in, int fd_out,
-                               off_t* off_out, size_t len, unsigned int flags);
-#endif
 
 #if defined(__linux__) || (defined(__FreeBSD__) && __FreeBSD_version >= 1301000)
 #    define UV__CPU_AFFINITY_SUPPORTED 1
@@ -457,7 +415,6 @@ ssize_t uv__fs_copy_file_range(int fd_in, off_t* off_in, int fd_out,
 #    define UV__CPU_AFFINITY_SUPPORTED 0
 #endif
 
-#ifdef __linux__
 typedef struct
 {
     long long quota_per_period;
@@ -466,6 +423,5 @@ typedef struct
 } uv__cpu_constraint;
 
 int uv__get_constrained_cpu(uv__cpu_constraint* constraint);
-#endif
 
 #endif /* UV_UNIX_INTERNAL_H_ */

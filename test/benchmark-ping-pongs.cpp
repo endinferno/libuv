@@ -40,7 +40,7 @@ typedef struct
 
 typedef struct buf_s
 {
-    uv_buf_t uv_buf_t;
+    uv_buf_t uv_buf;
     struct buf_s* next;
 } buf_t;
 
@@ -63,12 +63,12 @@ static void buf_alloc(uv_handle_t* tcp, size_t size, uv_buf_t* buf)
     if (ab != NULL)
         buf_freelist = ab->next;
     else {
-        ab = malloc(size + sizeof(*ab));
-        ab->uv_buf_t.len = size;
-        ab->uv_buf_t.base = (char*)(ab + 1);
+        ab = reinterpret_cast<buf_t*>(malloc(size + sizeof(*ab)));
+        ab->uv_buf.len = size;
+        ab->uv_buf.base = (char*)(ab + 1);
     }
 
-    *buf = ab->uv_buf_t;
+    *buf = ab->uv_buf;
 }
 
 
@@ -110,7 +110,7 @@ static void pinger_write_ping(pinger_t* pinger)
 
     buf = uv_buf_init(PING, sizeof(PING) - 1);
 
-    req = malloc(sizeof *req);
+    req = reinterpret_cast<uv_write_t*>(malloc(sizeof *req));
     if (uv_write(req, (uv_stream_t*)&pinger->tcp, &buf, 1, pinger_write_cb)) {
         FATAL("uv_write failed");
     }
@@ -194,7 +194,7 @@ static void pinger_new(void)
 
     ASSERT_OK(uv_ip4_addr("0.0.0.0", 0, &client_addr));
     ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &server_addr));
-    pinger = malloc(sizeof(*pinger));
+    pinger = reinterpret_cast<pinger_t*>(malloc(sizeof(*pinger)));
     pinger->state = 0;
     pinger->pongs = 0;
 
