@@ -469,7 +469,7 @@ int uv__socket(int domain, int type, int protocol)
 }
 
 /* get a file pointer to a file in read-only and close-on-exec mode */
-FILE* uv__open_file(const std::string &path)
+FILE* uv__open_file(const std::string& path)
 {
     int fd;
     FILE* fp;
