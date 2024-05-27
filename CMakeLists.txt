@@ -92,17 +92,18 @@ list(APPEND uv_cflags ${lint-strict-prototypes} ${lint-extra} ${lint-wall}
 
 set(uv_sources
     src/fs-poll.cpp
-    src/idna.cpp
+    # src/idna.cpp
     src/inet.cpp
-    src/random.cpp
+    # src/random.cpp
     src/strscpy.cpp
     src/strtok.cpp
-    src/thread-common.cpp
+    # src/thread-common.cpp
     src/threadpool.cpp
     src/timer.cpp
     src/uv-common.cpp
-    src/uv-data-getter-setters.cpp
-    src/version.cpp)
+    # src/uv-data-getter-setters.cpp
+    # src/version.cpp)
+    )
 
 list(APPEND uv_defines _FILE_OFFSET_BITS=64 _LARGEFILE_SOURCE)
 # TODO: This should be replaced with find_package(Threads) if possible

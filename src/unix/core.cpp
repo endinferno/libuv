@@ -132,15 +132,6 @@ void uv_close(uv_handle_t* handle, uv_close_cb close_cb)
     case UV_PROCESS: uv__process_close((uv_process_t*)handle); break;
 
     case UV_FS_EVENT: uv__fs_event_close((uv_fs_event_t*)handle);
-#if defined(__sun) || defined(__MVS__)
-        /*
-         * On Solaris, illumos, and z/OS we will not be able to dissociate the
-         * watcher for an event which is pending delivery, so we cannot always
-         * call uv__make_close_pending() straight away. The backend will call
-         * the function once the event has cleared.
-         */
-        return;
-#endif
         break;
 
     case UV_POLL: uv__poll_close((uv_poll_t*)handle); break;
